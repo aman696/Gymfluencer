@@ -1,0 +1,21 @@
+# Environment Variables
+.env
+
+# Virtual Environment
+venv/
+
+# Python Bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Distribution / Packaging
+*.egg-info/
+dist/
+build/
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+
