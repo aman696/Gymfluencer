@@ -1,0 +1,61 @@
+/* Global Styles */
+@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+:root {
+  --primary: #ffd60a;
+  --primary-hover: #FFE44D;
+  --background: #000000;
+  --text: #FFFFFF;
+  --text-secondary: rgba(255, 255, 255, 0.7);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+}
+
+.app, #root {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--background);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.container {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+html, body {
+  height: 100%; /* Ensures root elements occupy full viewport height */
+  width: 100%;
+  margin: 0;    /* Removes default margin */
+}
+
+#root, .app {
+  height: 100%; /* Ensures app container stretches to full height */
+  width: 100%;
+  display: flex; /* Makes the child elements flexible (like .hero) */
+  flex-direction: column;
+}
+
+.geometric-text {
+  font-family: 'Chakra Petch', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}

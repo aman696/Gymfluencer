@@ -1,0 +1,157 @@
+.analyze-page {
+    display: flex;
+    flex-direction: column;
+    height: 100vh; /* Full viewport height */
+    overflow: hidden; /* Prevent page overflow */
+  }
+  
+  .analyze-scrollable {
+    display: flex;
+    flex-grow: 1;
+    overflow-y: auto; /* Enable vertical scrolling */
+  }
+  
+  /* Left Side: Camera Feed */
+  .analyze-left {
+    flex: 1; /* Takes 50% of the space */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #000; /* Fallback black background */
+    border-right: 2px solid rgba(255, 255, 255, 0.1); /* Subtle divider */
+  }
+  
+  .camera-feed {
+    width: 90%;
+    height: 90%;
+    border: 5px solid var(--primary-color, #ffd700); /* Yellow border */
+    border-radius: 10px;
+    object-fit: cover; /* Ensures full coverage */
+  }
+  
+  .placeholder {
+    text-align: center;
+    color: var(--text-color, #fff);
+    font-size: 1.2rem;
+  }
+  
+  /* Right Side: Dropdown and Controls */
+  .analyze-right {
+    flex: 1; /* Takes 50% of the space */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    padding: 2rem;
+    background-color: var(--background-color, #1a1a1a); /* Black theme */
+    color: var(--text-color, #fff);
+  }
+  
+  .dropdown-title {
+    font-size: 1.8rem;
+    font-family: "Chakra Petch", sans-serif;
+    color: var(--primary-color, #ffd700); /* Yellow theme */
+    margin-bottom: 1rem;
+  }
+  
+  .exercise-dropdown {
+    width: 80%;
+    padding: 1rem;
+    border-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 2px solid var(--primary-color, #ffd700);
+    font-size: 1rem;
+    color: var(--text-color, #fff);
+    outline: none;
+    margin-top: 1rem; /* Shift the dropdown below */
+  }
+  
+  .exercise-dropdown:focus {
+    border-color: var(--primary-color-hover, #e5c100);
+  }
+  
+  /* Preferences Section */
+  .exercise-config {
+    margin-top: 2rem;
+    text-align: left;
+    width: 80%;
+  }
+  
+  .config-row {
+    display: flex; /* Align items horizontally */
+    justify-content: space-between; /* Distribute evenly */
+    gap: 1rem; /* Add spacing between each group */
+  }
+  
+  .config-group {
+    display: flex;
+    flex-direction: column;
+    flex: 1; /* Ensure equal width for each input group */
+  }
+  
+  .config-group label {
+    font-size: 1rem;
+    color: var(--text-color, #fff);
+    margin-bottom: 0.5rem;
+  }
+  
+  .config-group input {
+    padding: 0.8rem;
+    border-radius: 5px;
+    border: 2px solid var(--primary-color, #ffd700);
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-color, #fff);
+    outline: none;
+    font-size: 1rem;
+    width: 100%; /* Ensure full width within the group */
+  }
+  
+  .start-button {
+    margin-top: 2rem;
+    padding: 1rem 2rem;
+    background-color: var(--primary-color, #ffd700);
+    color: #000;
+    font-size: 1.2rem;
+    font-weight: bold;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  .start-button:hover {
+    background-color: var(--primary-color-hover, #e5c100);
+  }
+  .rep-counter-overlay {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background-color: rgba(0, 0, 0, 0.7);
+    padding: 10px 20px;
+    border-radius: 5px;
+    color: white;
+  }
+  
+  .rep-counter-overlay h2 {
+    margin: 0;
+    font-size: 24px;
+  }
+  
+  .analyze-left {
+    position: relative;
+  }
+  .good-job-message {
+    font-size: 2em;
+    color: #28a745; /* Green color for success */
+    text-align: center;
+    margin-top: 20px;
+  }
+  
+  .calories-message {
+    font-size: 1.5em;
+    color: #ffc107; /* Amber color for attention */
+    text-align: center;
+    margin-top: 10px;
+  }
+  
+  

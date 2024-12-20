@@ -1,0 +1,192 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+
+.benefits-wrapper {
+  min-height: 100vh;
+  padding: 2rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: var(--dark);
+  color: var(--text-light);
+  font-family: 'Inter', sans-serif;
+}
+
+.benefits-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Benefit Cards */
+.benefit-card {
+  background: rgba(255, 215, 0, 0.1);
+  border-radius: 1rem;
+  padding: 2rem;
+  transition: transform 0.3s ease;
+  border: 1px solid rgba(255, 215, 0, 0.2);
+}
+
+.benefit-card:hover {
+  transform: translateY(-5px);
+  background: rgba(255, 215, 0, 0.15);
+}
+
+.benefit-icon {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  display: block;
+}
+
+.benefit-card h3 {
+  color: var(--primary-yellow);
+  margin-bottom: 1rem;
+  font-size: 1.25rem;
+}
+
+.benefit-card p {
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.6;
+}
+
+/* Phone Display */
+.phone-container {
+  grid-column: 2 / 3;
+  grid-row: span 2;
+}
+
+.phone-frame {
+  background: var(--dark);
+  border: 2px solid var(--primary-yellow);
+  border-radius: 2rem;
+  padding: 1rem;
+  aspect-ratio: 9/19;
+  width: 100%;
+  max-width: 300px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.phone-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem;
+  color: var(--text-light);
+}
+
+.close-btn {
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.workout-timer {
+  text-align: center;
+  margin: 1rem 0;
+}
+
+.workout-timer .time {
+  color: var(--primary-yellow);
+  font-size: 2rem;
+  font-weight: bold;
+  font-family: 'Space Mono', monospace;
+}
+
+.workout-timer .label {
+  color: var(--secondary-yellow);
+  margin-top: 0.5rem;
+}
+
+.workout-display {
+  position: relative;
+  margin: 1rem 0;
+}
+
+.workout-display img {
+  width: 100%;
+  border-radius: 1rem;
+  height: auto;
+}
+
+.review-btn {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 215, 0, 0.2);
+  border: 1px solid var(--primary-yellow);
+  color: var(--text-light);
+  padding: 0.5rem 1rem;
+  border-radius: 2rem;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.review-btn:hover {
+  background: rgba(255, 215, 0, 0.3);
+}
+
+.exercise-name {
+  position: absolute;
+  bottom: 3.5rem;
+  left: 1rem;
+  color: var(--text-light);
+  font-weight: bold;
+}
+
+.control-panel {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  margin-top: 1rem;
+}
+
+.control-panel button {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.3s ease;
+}
+
+.control-panel .play-btn {
+  background: var(--primary-yellow);
+  color: var(--dark);
+}
+
+.control-panel button:hover {
+  background: rgba(255, 215, 0, 0.2);
+}
+
+.control-panel .play-btn:hover {
+  background: var(--secondary-yellow);
+}
+
+/* Responsive Design */
+@media (max-width: 968px) {
+  .benefits-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .phone-container {
+    grid-column: 1;
+    grid-row: 1;
+    margin: 2rem 0;
+  }
+
+  .benefit-card {
+    padding: 1.5rem;
+  }
+}

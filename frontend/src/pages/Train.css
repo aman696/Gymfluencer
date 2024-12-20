@@ -1,0 +1,254 @@
+/* src/pages/Train.css */
+
+/* General page styles */
+.train-page {
+    font-family: Arial, sans-serif;
+    background-color: #000; /* Black background for consistency */
+    color: #fff; /* White text for readability */
+    padding: 20px;
+    margin-top: 120px;
+  }
+  
+  .train-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    text-align: center;
+    padding: 40px 20px;
+    background: rgba(0, 0, 0, 0.95); /* Slightly transparent black for container background */
+    border-radius: 10px;
+    box-shadow: 0 8px 15px rgba(255, 193, 7, 0.5); /* Subtle shadow for depth */
+  }
+  
+  .train-title {
+    font-size: 2.5rem;
+    color: #ffc107; /* Bright yellow for the title */
+    margin-bottom: 20px;
+  }
+  
+  .train-description {
+    font-size: 1.2rem;
+    color: #ddd; /* Light gray for description text */
+    margin-bottom: 40px;
+  }
+  
+  /* Workout card container */
+  .workout-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 30px; /* More space between cards */
+    justify-content: center; /* Center-align cards */
+  }
+  
+  /* Individual workout card */
+  .workout-card {
+    background-color: #111; /* Dark card background for contrast */
+    border: 2px solid #ffc107; /* Yellow border for consistency with the theme */
+    border-radius: 10px;
+    padding: 20px;
+    width: 320px; /* Slightly wider for better text spacing */
+    color: #fff; /* White text for readability */
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    text-align: center; /* Center-align text */
+    cursor: pointer; /* Pointer cursor on hover */
+  }
+  
+  .workout-card:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 15px rgba(255, 193, 7, 0.5); /* Yellow glow effect on hover */
+  }
+  
+  /* Card content */
+  .card-title {
+    font-size: 1.5rem;
+    color: #ffc107; /* Bright yellow for card titles */
+    margin-bottom: 10px;
+  }
+  
+  .card-description {
+    font-size: 1rem;
+    color: #ddd; /* Light gray for description */
+    margin-bottom: 15px;
+  }
+  
+  .schedule-list {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .schedule-list li {
+    margin-bottom: 15px;
+    color: #ddd; /* Light gray */
+  }
+  
+  .schedule-list strong {
+    color: #ffc107; /* Highlight days in yellow */
+  }
+  
+  .schedule-list ul {
+    list-style-type: disc; /* Disc bullets for exercises */
+    margin-left: 20px;
+    color: #bbb; /* Light gray for exercises */
+  }
+  
+  /* Popup overlay */
+  .popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.8); /* Semi-transparent black */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+  
+  /* Popup box */
+  .popup {
+    background-color: #111; /* Dark background for popup */
+    color: #fff; /* White text */
+    border: 2px solid #ffc107; /* Yellow border */
+    border-radius: 10px;
+    padding: 30px;
+    width: 600px;
+    max-height: 80vh;
+    overflow-y: auto; /* Scroll if content exceeds height */
+    box-shadow: 0 8px 15px rgba(255, 193, 7, 0.5);
+    position: relative;
+  }
+  
+  /* Popup title */
+  .popup-title {
+    font-size: 1.8rem;
+    color: #ffc107; /* Yellow for title */
+    margin-bottom: 20px;
+  }
+  
+  /* Close button */
+  .close-button {
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    background: none;
+    border: none;
+    font-size: 2rem;
+    color: #ffc107;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+  }
+  
+  .close-button:hover {
+    transform: scale(1.2);
+  }
+  
+  /* Personalized Workout Routine Section */
+  .personalized-workout {
+    margin-top: 40px;
+    background-color: #111;
+    padding: 20px;
+    border-radius: 10px;
+    border: 2px solid #ffc107;
+  }
+  
+  .personalized-workout h2 {
+    color: #ffc107;
+    margin-bottom: 20px;
+  }
+  
+  .workout-form .form-group {
+    margin-bottom: 15px;
+    text-align: left; /* Align labels and inputs to the left */
+  }
+  
+  .workout-form label {
+    display: block;
+    color: #ffc107;
+    margin-bottom: 5px;
+    font-weight: bold;
+  }
+  
+  .workout-form input,
+  .workout-form select {
+    width: 100%;
+    padding: 10px;
+    font-size: 1rem;
+    border-radius: 5px;
+    border: none;
+    background-color: #222;
+    color: #fff;
+  }
+  
+  .workout-form input::placeholder {
+    color: #aaa;
+  }
+  
+  .action-button {
+    margin-top: 20px;
+    background-color: #ffc107;
+    color: #000;
+    border: none;
+    padding: 10px 20px;
+    font-size: 1rem;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.3s;
+  }
+  
+  .action-button:hover {
+    background-color: #e6b800;
+    transform: scale(1.05);
+  }
+  
+  .action-button:disabled {
+    background-color: #555;
+    cursor: not-allowed;
+  }
+  
+  .generated-plan {
+    margin-top: 20px;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid #ffc107;
+  }
+  
+  .generated-plan h3 {
+    color: #ffc107;
+  }
+  
+  .plan-content {
+    text-align: left;
+  }
+  
+  .error-message {
+    margin-top: 20px;
+    background-color: #ff4d4d;
+    color: #fff;
+    padding: 10px;
+    border-radius: 5px;
+  }
+  
+  /* Responsive Design */
+  @media (max-width: 768px) {
+    .workout-cards {
+      flex-direction: column; /* Stack cards vertically on smaller screens */
+      align-items: center;
+    }
+  
+    .workout-card {
+      width: 90%; /* Full-width cards on smaller screens */
+    }
+  
+    .popup {
+      width: 90%; /* Reduce popup width on smaller screens */
+    }
+  }
+  
+  @media (min-width: 769px) and (max-width: 1024px) {
+    .workout-card {
+      width: 45%; /* Two cards per row on medium screens */
+    }
+  }
+  

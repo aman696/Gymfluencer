@@ -1,0 +1,88 @@
+/* Testimonial Section */
+.testimonial-section {
+    background-color: #000; /* Dark background */
+    color: #fff; /* White text */
+    padding: 4rem 2rem;
+    text-align: center;
+  }
+  
+  .testimonial-title {
+    font-size: 2.5rem;
+    font-family: "Chakra Petch", sans-serif;
+    color: #fecd1a; /* Yellow color */
+    margin-bottom: 2rem;
+  }
+  
+  /* Slider Container */
+  .testimonial-slider {
+    overflow: hidden;
+    position: relative;
+    width: 100%;
+    margin: 0 auto;
+  }
+  
+  .testimonial-track {
+    display: flex;
+    gap: 3rem; /* Increased gap for larger cards */
+    animation: scroll-left 20s linear infinite; /* Moving animation */
+  }
+  
+  .testimonial-card {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 15px; /* Increased border radius for smoother edges */
+    padding: 2rem; /* Increased padding */
+    min-width: 450px; /* Larger card width */
+    display: flex;
+    align-items: center;
+    gap: 1.5rem; /* Increased gap between image and content */
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4); /* Enhanced shadow for emphasis */
+    text-align: left;
+  }
+  
+  .testimonial-image {
+    width: 150px; /* Larger image width */
+    height: 150px; /* Larger image height */
+    border-radius: 15px; /* Match card radius for consistency */
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+  
+  .testimonial-content {
+    flex: 1;
+  }
+  
+  .testimonial-rating {
+    color: #ff0000; /* Red stars */
+    margin-bottom: 0.8rem; /* Increased space below rating */
+    font-size: 1.5rem; /* Larger font size for stars */
+  }
+  
+  .testimonial-review {
+    font-size: 1.2rem; /* Larger font size for the review text */
+    color: #cccccc;
+    line-height: 1.8; /* Adjusted line height for readability */
+    margin-bottom: 1.5rem; /* Increased space below the review */
+  }
+  
+  .testimonial-author h4 {
+    font-size: 1.4rem; /* Larger font size for name */
+    color: #fff;
+    margin: 0;
+  }
+  
+  .testimonial-author p {
+    font-size: 1rem; /* Larger font size for role */
+    color: #cccccc;
+    margin: 0;
+  }
+  
+  /* Animation */
+  @keyframes scroll-left {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-100%);
+    }
+  }
+  

@@ -1,0 +1,47 @@
+.social-sidebar {
+    position: fixed;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    gap: 2rem;
+    padding: 1rem;
+    z-index: 40;
+  }
+  
+  .follow-text {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+  }
+  
+  .social-links {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  
+  .social-link {
+    color: var(--text);
+    transition: color 0.3s;
+  }
+  
+  .social-link:hover {
+    color: var(--primary);
+  }
+  
+  .social-link .icon {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+  
+  @media (max-width: 768px) {
+    .social-sidebar {
+      display: none;
+    }
+  }
+  
+  

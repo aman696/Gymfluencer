@@ -1,0 +1,21 @@
+.framer-badge {
+    position: fixed;
+    bottom: 1rem;
+    right: 1rem;
+    background-color: #000;
+    color: #fff;
+    padding: 0.5rem 1rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    z-index: 50;
+  }
+  
+  .framer-badge:hover {
+    background-color: #111;
+  }
+  
+  

@@ -1,0 +1,131 @@
+/* Track.css */
+
+.track-page {
+  font-family: Arial, sans-serif;
+  background-color: #000; /* Black background */
+  color: #fff; /* White text */
+  padding: 20px;
+}
+
+.track-container {
+  max-width: 900px;
+  margin: 0 auto;
+  text-align: center;
+  padding: 40px 20px;
+  background: rgba(0, 0, 0, 0.9); /* Slightly transparent black for form background */
+  border-radius: 10px;
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.5); /* Add shadow to the container */
+}
+
+.track-title {
+  font-size: 2.5rem;
+  color: #ffc107; /* Bright yellow for title */
+  margin-bottom: 20px;
+}
+
+.track-description {
+  font-size: 1.2rem;
+  color: #ddd; /* Light gray for description */
+  margin-bottom: 30px;
+}
+
+.track-form {
+  text-align: left;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr); /* Three fields per row */
+  gap: 20px; /* Add spacing between fields */
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  background: #111; /* Darker black background for inputs */
+  border: 2px solid #ffc107; /* Yellow border */
+  border-radius: 10px;
+  padding: 15px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.form-group:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 10px rgba(255, 193, 7, 0.4); /* Yellow glow effect */
+}
+
+.form-group label {
+  font-size: 1rem;
+  color: #ffc107; /* Yellow for labels */
+  margin-bottom: 5px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 10px;
+  font-size: 1rem;
+  border: none;
+  border-radius: 5px;
+  background-color: #222; /* Dark background for inputs */
+  color: #fff; /* White text for inputs */
+  outline: none;
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: #bbb; /* Light gray for placeholders */
+}
+
+.radio-group {
+  display: flex;
+  gap: 10px;
+}
+
+.radio-group label {
+  font-size: 1rem;
+  color: #ddd; /* Light gray */
+}
+
+.full-width {
+  grid-column: span 3; /* Full-width field */
+}
+
+.button-group {
+  margin-top: 30px;
+  display: flex;
+  justify-content: center;
+}
+
+.action-button {
+  background-color: #ffc107; /* Yellow button */
+  color: #000; /* Black text */
+  border: none;
+  padding: 15px 30px;
+  font-size: 1rem;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.action-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 10px rgba(255, 193, 7, 0.5); /* Yellow glow */
+}
+
+.generated-plan {
+  margin-top: 30px;
+  padding: 20px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: #000000;
+  color: #ffffff; /* Black text for readability */
+}
+
+.generated-plan pre {
+  text-align: left;
+  background-color: #eee;
+  padding: 10px;
+  border-radius: 5px;
+  overflow-x: auto;
+}

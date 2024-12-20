@@ -1,0 +1,79 @@
+/* FAQ Section */
+.faq-section {
+    background-color: #000; /* Black background */
+    color: #fff; /* White text */
+    padding: 4rem 2rem;
+    text-align: center;
+  }
+  
+  .faq-title {
+    font-size: 2rem;
+    font-family: "Chakra Petch", sans-serif;
+    color: #fecd1a; /* Yellow color */
+    margin-bottom: 2rem;
+  }
+  
+  /* FAQ Container */
+  .faq-container {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+  
+  .faq-item {
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid transparent;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  
+  .faq-item:hover {
+    border-color: #fecd1a; /* Yellow border on hover */
+  }
+  
+  .faq-item.active {
+    border-color: #fecd1a; /* Yellow border for active item */
+  }
+  
+  .faq-question {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 1.2rem;
+    font-family: "Chakra Petch", sans-serif;
+    color: #fecd1a; /* Yellow text for questions */
+  }
+  
+  .faq-toggle {
+    font-size: 1.5rem;
+    color: #fecd1a; /* Yellow toggle symbol */
+  }
+  
+  .faq-answer {
+    margin-top: 1rem;
+    font-size: 1rem;
+    color: #cccccc; /* Subtle white text */
+    display: none;
+    overflow: hidden;
+    transition: all 0.3s ease;
+  }
+  
+  .faq-item.active .faq-answer {
+    display: block;
+    animation: fadeIn 0.3s ease-in-out;
+  }
+  
+  /* Animation for FAQ answer */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
