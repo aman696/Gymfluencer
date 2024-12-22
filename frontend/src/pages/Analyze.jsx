@@ -3,7 +3,7 @@ import "./Analyze.css";
 import axios from "axios";
 import { Header } from "../components/Header";
 export function Analyze() {
-  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+  const API_BASE_URL = "https://gymfluencer-ii0b.onrender.com/";
   const [selectedExercise, setSelectedExercise] = useState("Lateral Raise");
   const [cameraActive, setCameraActive] = useState(false);
   const [yoloResults, setYoloResults] = useState([]);
