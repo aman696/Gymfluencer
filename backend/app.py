@@ -83,6 +83,17 @@ def count_shoulder_press(landmarks):
             exercise_state.position_state = 0
 
     return exercise_state.rep_count
+@app.route("/")
+def home():
+    return jsonify({
+        "message": "Welcome to the Gymfluencer API!",
+        "endpoints": {
+            "/process_frame": "POST - Process exercise frames",
+            "/reset_exercise": "POST - Reset exercise state",
+            "/generate_plan": "POST - Generate a personalized diet plan",
+            "/workout_plan": "POST - Generate a personalized workout plan"
+        }
+    }), 200
 
 @app.route("/process_frame", methods=["POST"])
 def process_frame():
