@@ -3,6 +3,7 @@ import "./Analyze.css";
 import axios from "axios";
 import { Header } from "../components/Header";
 export function Analyze() {
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
   const [selectedExercise, setSelectedExercise] = useState("Lateral Raise");
   const [cameraActive, setCameraActive] = useState(false);
   const [yoloResults, setYoloResults] = useState([]);
@@ -109,7 +110,7 @@ export function Analyze() {
       formData.append("exercise_type", selectedExercise);
 
       try {
-        const response = await axios.post("http://localhost:5000/process_frame", formData, {
+        const response = await axios.post(`${API_BASE_URL}/process_frame`, formData, {
           headers: { "Content-Type": "multipart/form-data" },
         });
 
@@ -125,8 +126,7 @@ export function Analyze() {
           if (newRepCount >= reps && !isResting) {
             // Set completed
             // Reset backend rep count
-            await axios.post("http://localhost:5000/reset_exercise");
-
+            await axios.post(`${API_BASE_URL}/reset_exercise`);
             // Reset frontend rep count
             setCurrentRepCount(0);
 
@@ -225,8 +225,7 @@ export function Analyze() {
   const handleStart = async () => {
     try {
       // Reset backend exercise state first
-      await axios.post("http://localhost:5000/reset_exercise");
-
+      await axios.post(`${API_BASE_URL}/reset_exercise`);
       // Now reset frontend states
       setCurrentSetCount(1);
       setCurrentRepCount(0);

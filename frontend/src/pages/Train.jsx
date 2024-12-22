@@ -139,6 +139,7 @@ export function Train() {
   ];
 
   // Handle form submission
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -146,7 +147,7 @@ export function Train() {
     setPersonalizedWorkout("");
 
     try {
-      const response = await axios.post("http://localhost:5000/workout_plan", {
+      const response = await axios.post(`${API_BASE_URL}/workout_plan`, {
         fitness_goal: formData.fitnessGoal,
         experience_level: formData.experienceLevel,
         workout_days: formData.workoutDays,
