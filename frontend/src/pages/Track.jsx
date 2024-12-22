@@ -5,7 +5,6 @@ import axios from "axios"; // For API calls
 import ReactMarkdown from "react-markdown";
 
 export function Track() {
-  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
   const [fitnessGoal, setFitnessGoal] = useState("");
   const [currentWeight, setCurrentWeight] = useState("");
   const [height, setHeight] = useState("");
@@ -35,7 +34,7 @@ export function Track() {
     };
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/generate_plan`, requestData);
+      const response = await axios.post(`https://gymfluencer-ii0b.onrender.com/generate_plan`, requestData);
 
       if (response.status === 200) {
         setGeneratedPlan(response.data.plan); // Display the generated plan
