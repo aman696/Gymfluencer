@@ -110,7 +110,7 @@ export function Analyze() {
       formData.append("exercise_type", selectedExercise);
 
       try {
-        const response = await axios.post(`${API_BASE_URL}/process_frame`, formData, {
+        const response = await axios.post(`https://gymfluencer-ii0b.onrender.com/process_frame`, formData, {
           headers: { "Content-Type": "multipart/form-data" },
         });
 
@@ -126,7 +126,7 @@ export function Analyze() {
           if (newRepCount >= reps && !isResting) {
             // Set completed
             // Reset backend rep count
-            await axios.post(`${API_BASE_URL}/reset_exercise`);
+            await axios.post(`https://gymfluencer-ii0b.onrender.com/reset_exercise`);
             // Reset frontend rep count
             setCurrentRepCount(0);
 
@@ -225,7 +225,7 @@ export function Analyze() {
   const handleStart = async () => {
     try {
       // Reset backend exercise state first
-      await axios.post(`${API_BASE_URL}/reset_exercise`);
+      await axios.post(`https://gymfluencer-ii0b.onrender.com//reset_exercise`);
       // Now reset frontend states
       setCurrentSetCount(1);
       setCurrentRepCount(0);
