@@ -2,8 +2,12 @@ import React, { useState, useRef, useEffect } from "react";
 import "./Analyze.css";
 import axios from "axios";
 import { Header } from "../components/Header";
+
 export function Analyze() {
+  // Update to match your local or deployed backend URL
   const API_BASE_URL = "https://gymfluencer-ii0b.onrender.com/";
+
+  // Existing states
   const [selectedExercise, setSelectedExercise] = useState("Lateral Raise");
   const [cameraActive, setCameraActive] = useState(false);
   const [yoloResults, setYoloResults] = useState([]);
@@ -13,14 +17,16 @@ export function Analyze() {
 
   const [currentRepCount, setCurrentRepCount] = useState(0);
   const [currentSetCount, setCurrentSetCount] = useState(1);
-
   const [isResting, setIsResting] = useState(false);
   const [restCountdown, setRestCountdown] = useState(restTime);
 
-  const [exerciseCompleted, setExerciseCompleted] = useState(false); // New state
-  const [bodyWeight, setBodyWeight] = useState(70); // New state for body weight
-  const [exerciseIntensity, setExerciseIntensity] = useState("Moderate"); // New state for intensity
-  const [caloriesBurned, setCaloriesBurned] = useState(0);    // New state for calories
+  const [exerciseCompleted, setExerciseCompleted] = useState(false); 
+  const [bodyWeight, setBodyWeight] = useState(70);
+  const [exerciseIntensity, setExerciseIntensity] = useState("Moderate");
+  const [caloriesBurned, setCaloriesBurned] = useState(0);
+
+  // NEW: Feedback state
+  const [feedback, setFeedback] = useState("Start your exercise!");
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -56,9 +62,10 @@ export function Analyze() {
     const durationHours = totalDurationSeconds / 3600;
 
     const calories = met * bodyWeight * durationHours;
-    return Math.round(calories); // Round to nearest whole number
+    return Math.round(calories);
   };
 
+  // Camera startup/shutdown
   useEffect(() => {
     if (cameraActive) {
       startCamera();
@@ -76,7 +83,6 @@ export function Analyze() {
         await videoRef.current.play();
       }
       processingActive.current = true;
-      // Start processing frames
       processNextFrame();
     } catch (err) {
       console.error("Error accessing camera: ", err);
@@ -87,11 +93,12 @@ export function Analyze() {
     processingActive.current = false;
     clearRestInterval();
     if (videoRef.current && videoRef.current.srcObject) {
-      videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+      videoRef.current.srcObject.getTracks().forEach((track) => track.stop());
     }
-    // Note: Do NOT set cameraActive here to allow manual control via setCameraActive
+    // We don't set cameraActive here to avoid potential conflicts.
   };
 
+  // Continuous frame processing
   const processNextFrame = () => {
     if (!processingActive.current || isResting || currentSetCount > sets) return;
     captureFrameAndProcess();
@@ -110,7 +117,7 @@ export function Analyze() {
       formData.append("exercise_type", selectedExercise);
 
       try {
-        const response = await axios.post(`https://gymfluencer-ii0b.onrender.com/process_frame`, formData, {
+        const response = await axios.post(`${API_BASE_URL}process_frame`, formData, {
           headers: { "Content-Type": "multipart/form-data" },
         });
 
@@ -120,17 +127,17 @@ export function Analyze() {
           }
 
           const newRepCount = response.data.rep_count || 0;
-          // Set currentRepCount directly based on backend count
           setCurrentRepCount(newRepCount);
 
+          // NEW: Capture feedback
+          const newFeedback = response.data.feedback || "Keep going!";
+          setFeedback(newFeedback);
+
           if (newRepCount >= reps && !isResting) {
-            // Set completed
-            // Reset backend rep count
-            await axios.post(`https://gymfluencer-ii0b.onrender.com/reset_exercise`);
-            // Reset frontend rep count
+            // Reset backend and frontend rep count
+            await axios.post(`${API_BASE_URL}reset_exercise`);
             setCurrentRepCount(0);
 
-            // Start rest timer
             startRestTimer();
           } else if (processingActive.current && !isResting && currentSetCount <= sets) {
             processNextFrame();
@@ -150,9 +157,9 @@ export function Analyze() {
     const context = canvas.getContext("2d");
 
     context.clearRect(0, 0, canvas.width, canvas.height);
-    context.fillStyle = 'red';
+    context.fillStyle = "red";
 
-    landmarks.forEach(lm => {
+    landmarks.forEach((lm) => {
       const x = lm.x * canvas.width;
       const y = lm.y * canvas.height;
       context.beginPath();
@@ -161,17 +168,18 @@ export function Analyze() {
     });
   };
 
+  // Rest timer logic
   const startRestTimer = () => {
     setIsResting(true);
     setRestCountdown(restTime);
     clearRestInterval();
 
     restIntervalRef.current = setInterval(() => {
-      setRestCountdown(prev => {
+      setRestCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(restIntervalRef.current);
           finishRestWithBaseline();
-          return restTime; 
+          return restTime;
         }
         return prev - 1;
       });
@@ -180,20 +188,20 @@ export function Analyze() {
 
   const finishRestWithBaseline = () => {
     setIsResting(false);
-    setCurrentSetCount(prevSet => {
+    setCurrentSetCount((prevSet) => {
       const nextSet = prevSet + 1;
       if (nextSet > sets) {
         // All sets completed
         processingActive.current = false;
         stopCamera();
-        setExerciseCompleted(true); // Set exercise as completed
-        setCameraActive(false);     // Ensure cameraActive is set to false
+        setExerciseCompleted(true);
+        setCameraActive(false);
 
         // Calculate total calories burned
         const totalCalories = calculateCaloriesBurned();
         setCaloriesBurned(totalCalories);
       } else {
-        // Prepare for the next set
+        // Next set
         processNextFrame();
       }
       return nextSet;
@@ -207,40 +215,44 @@ export function Analyze() {
     }
   };
 
+  // Keep processing frames if conditions allow
   useEffect(() => {
-    // If conditions allow, continue processing frames
     if (cameraActive && processingActive.current && !isResting && currentSetCount <= sets) {
       processNextFrame();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cameraActive, isResting, currentSetCount]);
 
+  // Cleanup on unmount
   useEffect(() => {
-    // Cleanup on unmount
     return () => {
       stopCamera();
     };
   }, []);
 
+  // Start or reset
   const handleStart = async () => {
     try {
       // Reset backend exercise state first
-      await axios.post(`https://gymfluencer-ii0b.onrender.com//reset_exercise`);
-      // Now reset frontend states
+      await axios.post(`${API_BASE_URL}reset_exercise`);
+
+      // Reset frontend states
       setCurrentSetCount(1);
       setCurrentRepCount(0);
       setIsResting(false);
-      setExerciseCompleted(false); // Reset exercise completion state
-      setCaloriesBurned(0);        // Reset calories burned
+      setExerciseCompleted(false);
+      setCaloriesBurned(0);
+      setFeedback("Start your exercise!");
 
       setCameraActive(true);
     } catch (err) {
       console.error("Error resetting exercise:", err);
     }
   };
+
   return (
     <div className="analyze-page">
-        <Header />
+      <Header />
       <div className="analyze-scrollable">
         <div className="analyze-left">
           {cameraActive ? (
@@ -250,9 +262,13 @@ export function Analyze() {
                 {isResting ? (
                   <h2>Rest: {restCountdown} sec</h2>
                 ) : (
-                  <h2>
-                    Set: {currentSetCount}/{sets} | Reps: {currentRepCount}/{reps}
-                  </h2>
+                  <>
+                    <h2>
+                      Set: {currentSetCount}/{sets} | Reps: {currentRepCount}/{reps}
+                    </h2>
+                    {/* Display dynamic feedback */}
+                    <p style={{ marginTop: "115px" }}>{feedback}</p>
+                  </>
                 )}
               </div>
             </>
@@ -277,7 +293,7 @@ export function Analyze() {
           <h2 className="dropdown-title">Select an Exercise</h2>
           <select
             className="exercise-dropdown"
-            style={{ backgroundColor: '#333' }}
+            style={{ backgroundColor: "#333" }}
             value={selectedExercise}
             onChange={(e) => setSelectedExercise(e.target.value)}
           >
@@ -345,14 +361,21 @@ export function Analyze() {
           </div>
 
           <div className="button-group">
-            <button className="start-button" style={{ marginRight: "1rem" }} onClick={handleStart}>
+            <button
+              className="start-button"
+              style={{ marginRight: "1rem" }}
+              onClick={handleStart}
+            >
               Start Exercise
             </button>
 
-            <button className="start-button" onClick={() => {
-              processingActive.current = false;
-              setCameraActive(false);
-            }}>
+            <button
+              className="start-button"
+              onClick={() => {
+                processingActive.current = false;
+                setCameraActive(false);
+              }}
+            >
               Stop Exercise
             </button>
           </div>
@@ -361,4 +384,3 @@ export function Analyze() {
     </div>
   );
 }
-
