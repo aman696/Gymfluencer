@@ -5,7 +5,7 @@ import { Header } from "../components/Header";
 
 export function Analyze() {
   // Update to match your local or deployed backend URL
-  const API_BASE_URL = "https://gymfluencer-ii0b.onrender.com/";
+  const API_BASE_URL = "http://localhost:5000/";
 
   // Existing states
   const [selectedExercise, setSelectedExercise] = useState("Lateral Raise");
