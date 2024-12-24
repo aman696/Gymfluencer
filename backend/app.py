@@ -1,5 +1,6 @@
 import math
 import os
+import logging
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import cv2
@@ -8,12 +9,17 @@ import mediapipe as mp
 import google.generativeai as genai
 from dotenv import load_dotenv
 
+# Load environment variables from .env file
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+
 app = Flask(__name__)
 CORS(app)
 
 ##############################################################################
-# MEDIAPIPE POSE
+# MEDIAPIPE POSE AND HANDS INITIALIZATION
 ##############################################################################
 
 mp_pose = mp.solutions.pose
@@ -22,6 +28,15 @@ pose = mp_pose.Pose(
     model_complexity=1,
     smooth_landmarks=True,
     enable_segmentation=False,
+    min_detection_confidence=0.1,
+    min_tracking_confidence=0.1
+)
+
+mp_hands = mp.solutions.hands
+hands = mp_hands.Hands(
+    static_image_mode=False,
+    max_num_hands=2,
+    model_complexity=1,
     min_detection_confidence=0.5,
     min_tracking_confidence=0.5
 )
@@ -33,14 +48,51 @@ pose = mp_pose.Pose(
 class ExerciseState:
     def __init__(self):
         self.rep_count = 0
-        # We'll use 0, 1, 2 for a full cycle (stand → bottom → returning → stand)
         self.position_state = 0
+        self.holding_dumbbells_overall = False
+        self.dumbbells_detected = False  # New flag to track dumbbell detection
+
+    def reset(self):
+        self.rep_count = 0
+        self.position_state = 0
+        self.holding_dumbbells_overall = False
+        self.dumbbells_detected = False  # Reset the flag
 
 exercise_state = ExerciseState()
 
 def reset_exercise_state():
-    exercise_state.rep_count = 0
-    exercise_state.position_state = 0
+    exercise_state.reset()
+
+def are_landmarks_too_clustered(landmarks):
+    """
+    Checks if the specified landmarks are too close to each other.
+    This can help in determining if the user is too close to the camera or if the detection is unreliable.
+    """
+    points = [
+        (landmarks[11].x, landmarks[11].y),  # left shoulder
+        (landmarks[12].x, landmarks[12].y),  # right shoulder
+        (landmarks[13].x, landmarks[13].y),  # left elbow
+        (landmarks[14].x, landmarks[14].y),  # right elbow
+        (landmarks[15].x, landmarks[15].y),  # left wrist
+        (landmarks[16].x, landmarks[16].y),  # right wrist
+        (landmarks[23].x, landmarks[23].y),  # left hip
+        (landmarks[24].x, landmarks[24].y),  # right hip
+        (landmarks[25].x, landmarks[25].y),  # left knee
+        (landmarks[26].x, landmarks[26].y)   # right knee
+    ]
+    
+    MIN_DISTANCE = 0.05  # Minimum allowed distance between points
+    
+    # Check distances between all point pairs
+    for i in range(len(points)):
+        for j in range(i + 1, len(points)):
+            dx = points[i][0] - points[j][0]
+            dy = points[i][1] - points[j][1]
+            distance = math.sqrt(dx**2 + dy**2)
+            if distance < MIN_DISTANCE:
+                logging.debug(f"Landmarks {i} and {j} are too close: {distance}")
+                return True
+    return False
 
 ##############################################################################
 # 1) LATERAL RAISE (Chest line check only, no angles)
@@ -54,6 +106,10 @@ def count_lateral_raise_chest(landmarks):
       - State 2 => returning down
       A rep is counted after arms fully return down from being up.
     """
+    if are_landmarks_too_clustered(landmarks):
+        logging.debug("Landmarks are too clustered. Skipping rep count.")
+        return exercise_state.rep_count
+
     # Shoulders
     left_shoulder = (landmarks[11].x, landmarks[11].y)
     right_shoulder = (landmarks[12].x, landmarks[12].y)
@@ -76,14 +132,17 @@ def count_lateral_raise_chest(landmarks):
         # Starting down
         if arms_up:
             exercise_state.position_state = 1
+            logging.debug("Transition to State 1: Arms Up")
     elif current_state == 1:
         # Arms are up
         if not arms_up:
             exercise_state.position_state = 2
+            logging.debug("Transition to State 2: Returning Down")
     else:  # current_state == 2 => returning
         if arms_down:
             exercise_state.rep_count += 1
             exercise_state.position_state = 0
+            logging.info(f"Lateral Raise Rep Count: {exercise_state.rep_count}")
 
     return exercise_state.rep_count
 
@@ -126,21 +185,22 @@ def get_lateral_raise_chest_feedback(landmarks):
 
 def calculate_angle(A, B, C):
     """
-    Basic angle calculation (still used for Shoulder Press).
+    Calculates the angle at point B formed by points A, B, and C.
     """
     BA = (A[0] - B[0], A[1] - B[1])
     BC = (C[0] - B[0], C[1] - B[1])
 
     dot_product = BA[0]*BC[0] + BA[1]*BC[1]
-    magBA = (BA[0]**2 + BA[1]**2)**0.5
-    magBC = (BC[0]**2 + BC[1]**2)**0.5
+    magBA = math.sqrt(BA[0]**2 + BA[1]**2)
+    magBC = math.sqrt(BC[0]**2 + BC[1]**2)
 
     if magBA == 0 or magBC == 0:
         return 0.0
 
     cos_angle = dot_product / (magBA * magBC)
     cos_angle = max(min(cos_angle, 1.0), -1.0)
-    return math.degrees(math.acos(cos_angle))
+    angle = math.degrees(math.acos(cos_angle))
+    return angle
 
 def count_shoulder_press_combined(landmarks):
     """
@@ -150,6 +210,10 @@ def count_shoulder_press_combined(landmarks):
       - State 2 => Returning to ~90°
       A rep is counted when user returns to ~90° from overhead.
     """
+    if are_landmarks_too_clustered(landmarks):
+        logging.debug("Landmarks are too clustered. Skipping rep count.")
+        return exercise_state.rep_count
+
     left_shoulder_pt = (landmarks[11].x, landmarks[11].y)
     left_elbow_pt    = (landmarks[13].x, landmarks[13].y)
     left_wrist_pt    = (landmarks[15].x, landmarks[15].y)
@@ -167,15 +231,18 @@ def count_shoulder_press_combined(landmarks):
         # wait for elbow.y < nose.y => overhead => state 1
         if elbow_above_nose:
             exercise_state.position_state = 1
+            logging.debug("Transition to State 1: Elbows Overhead")
     elif current_state == 1:
         # overhead => if user not elbow_above_nose => state 2
         if not elbow_above_nose:
             exercise_state.position_state = 2
+            logging.debug("Transition to State 2: Returning to ~90°")
     else:  # state 2 => returning
         # if elbow angle is ~90° and elbow not above nose => rep++
         if (START_ANGLE_LOW <= elbow_angle <= START_ANGLE_HIGH) and not elbow_above_nose:
             exercise_state.rep_count += 1
             exercise_state.position_state = 0
+            logging.info(f"Shoulder Press Rep Count: {exercise_state.rep_count}")
 
     return exercise_state.rep_count
 
@@ -228,12 +295,16 @@ def count_squats_pose_only(landmarks):
       - State 2 => returning
       A rep is counted once user returns fully to standing (hip definitely above knee).
     """
+    if are_landmarks_too_clustered(landmarks):
+        logging.debug("Landmarks are too clustered. Skipping rep count.")
+        return exercise_state.rep_count
+
     left_hip_pt   = (landmarks[23].x, landmarks[23].y)
     left_knee_pt  = (landmarks[25].x, landmarks[25].y)
 
     # We define 'hip below knee' => hip.y > knee.y
     hip_below_knee = (left_hip_pt[1] > left_knee_pt[1])
-    # We'll define 'hip above knee' => hip.y < knee.y 
+    # We define 'hip above knee' => hip.y < knee.y 
     hip_above_knee = (left_hip_pt[1] < left_knee_pt[1])
 
     current_state = exercise_state.position_state
@@ -243,15 +314,18 @@ def count_squats_pose_only(landmarks):
         # Move to state 1 if hip goes below knee
         if hip_below_knee:
             exercise_state.position_state = 1
+            logging.debug("Transition to State 1: Squat Bottom")
     elif current_state == 1:
         # bottom => if user starts raising => hip no longer below knee => state 2
         if not hip_below_knee:
             exercise_state.position_state = 2
+            logging.debug("Transition to State 2: Returning to Standing")
     else:  # state 2 => returning
         # rep is counted only once user is "fully standing" => hip again above knee
         if hip_above_knee:
             exercise_state.rep_count += 1
             exercise_state.position_state = 0
+            logging.info(f"Squat Rep Count: {exercise_state.rep_count}")
 
     return exercise_state.rep_count
 
@@ -264,7 +338,7 @@ def get_squats_pose_feedback(landmarks):
 
     current_state = exercise_state.position_state
 
-    # Provide more verbose feedback (not just "Keep going!")
+    # Provide more verbose feedback
     if current_state == 0:
         # fully standing => user is above knee
         if hip_below_knee:
@@ -284,6 +358,56 @@ def get_squats_pose_feedback(landmarks):
             feedback = "Keep extending hips to fully stand up."
 
     return feedback
+
+##############################################################################
+# HAND HOLDING DETECTION
+##############################################################################
+
+def is_hand_holding_object(hand_landmarks):
+    """
+    Determines if a hand is holding an object based on finger landmarks.
+    Returns True if the majority of fingers are curled or if the spread of fingertips is small.
+    """
+    # Define finger tip and pip landmarks indices
+    FINGER_TIPS = [4, 8, 12, 16, 20]
+    FINGER_PIPS = [3, 6, 10, 14, 18]
+    
+    # Criterion 1: Majority of fingers are curled
+    curled_fingers = 0
+    for tip, pip in zip(FINGER_TIPS, FINGER_PIPS):
+        # In MediaPipe, higher y-value means lower in the image (assuming origin at top-left)
+        if hand_landmarks[tip].y > hand_landmarks[pip].y:
+            curled_fingers += 1
+    
+    # Criterion 2: Spread of fingertips is small
+    # Calculate average distance between all pairs of fingertips
+    tips = [hand_landmarks[tip] for tip in FINGER_TIPS]
+    distances = []
+    for i in range(len(tips)):
+        for j in range(i + 1, len(tips)):
+            dx = tips[i].x - tips[j].x
+            dy = tips[i].y - tips[j].y
+            distance = math.sqrt(dx**2 + dy**2)
+            distances.append(distance)
+    
+    if distances:
+        avg_distance = sum(distances) / len(distances)
+    else:
+        avg_distance = 0
+    
+    # Threshold for considering the spread as small
+    SPREAD_THRESHOLD = 0.2  # Adjust based on testing
+    
+    small_spread = avg_distance < SPREAD_THRESHOLD
+    
+    # Logging for debugging
+    logging.debug(f"Curled fingers: {curled_fingers}, Average fingertip distance: {avg_distance}, Small spread: {small_spread}")
+    
+    # Determine holding status based on criteria
+    if curled_fingers >= 3 or small_spread:
+        return True
+    else:
+        return False
 
 ##############################################################################
 # MAIN FEEDBACK ROUTER
@@ -328,29 +452,38 @@ def process_frame():
         np_frame = np.frombuffer(file, np.uint8)
         frame = cv2.imdecode(np_frame, cv2.IMREAD_COLOR)
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        results = pose.process(frame_rgb)
 
+        # Process Pose
+        pose_results = pose.process(frame_rgb)
+
+        # Initialize variables
         landmarks = []
         rep_count = exercise_state.rep_count
         feedback = "Stand upright to start your exercise."
+        hand_landmarks = {
+            "left_hand": [],
+            "right_hand": []
+        }
+        holding_left = False
+        holding_right = False
 
-        if results.pose_landmarks:
-            raw_landmarks = results.pose_landmarks.landmark
+        # Process Pose Landmarks
+        if pose_results.pose_landmarks:
+            raw_landmarks = pose_results.pose_landmarks.landmark
 
-            # **Modified Section: Include Landmark IDs**
+            # Add Pose Landmarks to response
             landmarks = [
                 {
-                    "id": idx,  # Preserve the original landmark index
+                    "id": idx,
                     "x": lm.x,
                     "y": lm.y,
                     "z": lm.z,
                     "visibility": lm.visibility
                 }
-                for idx, lm in enumerate(raw_landmarks) if idx >= 11  # Exclude facial landmarks
+                for idx, lm in enumerate(raw_landmarks) if idx >= 11
             ]
-            # **End of Modified Section**
 
-            # Count Reps + Feedback using all landmarks (including facial landmarks)
+            # Count Reps + Feedback using pose landmarks
             if exercise_type == "Lateral Raise":
                 rep_count = count_lateral_raise_chest(raw_landmarks)
                 feedback = get_lateral_raise_chest_feedback(raw_landmarks)
@@ -363,25 +496,64 @@ def process_frame():
                 rep_count = count_squats_pose_only(raw_landmarks)
                 feedback = get_squats_pose_feedback(raw_landmarks)
 
+        # Process Hands only if dumbbells are not already detected
+        if not exercise_state.dumbbells_detected:
+            hands_results = hands.process(frame_rgb)
+            if hands_results.multi_hand_landmarks:
+                for hand_landmark, hand_handedness in zip(hands_results.multi_hand_landmarks, hands_results.multi_handedness):
+                    hand_label = hand_handedness.classification[0].label.lower()
+                    landmarks_list = [
+                        {
+                            "id": idx,
+                            "x": lm.x,
+                            "y": lm.y,
+                            "z": lm.z,
+                            "visibility": lm.visibility
+                        }
+                        for idx, lm in enumerate(hand_landmark.landmark)
+                    ]
+                    hand_landmarks[f"{hand_label}_hand"] = landmarks_list
+
+                    # Determine if the hand is holding an object
+                    holding = is_hand_holding_object(hand_landmark.landmark)
+                    if hand_label == "left":
+                        holding_left = holding
+                    else:
+                        holding_right = holding
+
+            holding_dumbbell = holding_left and holding_right
+            if holding_dumbbell:
+                exercise_state.dumbbells_detected = True
+                exercise_state.holding_dumbbells_overall = True
+                logging.info("Both dumbbells detected. Stopping hand tracking.")
             else:
-                feedback = "Please select a valid exercise type."
+                exercise_state.holding_dumbbells_overall = False
 
         return jsonify({
-            "pose_landmarks": landmarks,  # Only body landmarks with IDs are sent
+            "pose_landmarks": landmarks,
+            "hand_landmarks": hand_landmarks if not exercise_state.dumbbells_detected else None,
             "rep_count": rep_count,
-            "feedback": feedback
+            "feedback": feedback,
+            "holding_dumbbell": holding_left and holding_right,
+            "holding_dumbbells_overall": exercise_state.holding_dumbbells_overall,
+            "dumbbells_detected": exercise_state.dumbbells_detected
         }), 200
 
     except Exception as e:
+        logging.error(f"Error processing frame: {e}")
         return jsonify({"error": str(e)}), 500
+
 
 @app.route("/reset_exercise", methods=["POST"])
 def reset_exercise():
     reset_exercise_state()
+    exercise_state.holding_dumbbells_overall = False  # Reset holding status
+    logging.info("Exercise state has been reset.")
     return jsonify({"message": "Exercise state reset"}), 200
 
+
 ##############################################################################
-# GEMINI AI DIET & WORKOUT PLAN ROUTES (Unchanged)
+# GEMINI AI DIET & WORKOUT PLAN ROUTES
 ##############################################################################
 
 @app.route("/generate_plan", methods=["POST"])
@@ -436,6 +608,7 @@ def generate_plan():
         return jsonify({"plan": plan_text}), 200
 
     except Exception as e:
+        logging.error(f"Error generating plan: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route("/workout_plan", methods=["POST"])
@@ -466,6 +639,7 @@ def workout_plan():
         return jsonify({"plan": plan_text}), 200
 
     except Exception as e:
+        logging.error(f"Error generating workout plan: {e}")
         return jsonify({"error": str(e)}), 500
 
 ##############################################################################
@@ -474,4 +648,5 @@ def workout_plan():
 
 if __name__ == "__main__":
     reset_exercise_state()
-    app.run(debug=True)
+    logging.info("Starting Gymfluencer API Server...")
+    app.run(host='0.0.0.0', port=5000, debug=True)
