@@ -1,157 +1,252 @@
 .analyze-page {
-    display: flex;
-    flex-direction: column;
-    height: 100vh; /* Full viewport height */
-    overflow: hidden; /* Prevent page overflow */
-  }
-  
+  display: flex;
+  flex-direction: column;
+  height: 100vh; /* Full viewport height */
+  overflow: hidden; /* Prevent page overflow */
+}
+
+.analyze-scrollable {
+  display: flex;
+  flex-grow: 1;
+  overflow-y: auto; /* Enable vertical scrolling */
+}
+
+/* Left Side: Camera Feed */
+.analyze-left {
+  flex: 1; /* Takes 50% of the space */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #000; /* Fallback black background */
+  border-right: 2px solid rgba(255, 255, 255, 0.1); /* Subtle divider */
+  position: relative; /* Important for absolutely positioning the canvas */
+}
+
+.camera-feed {
+  width: 90%;
+  height: 90%;
+  border: 5px solid var(--primary-color, #ffd700); /* Yellow border */
+  border-radius: 10px;
+  object-fit: cover; /* Ensures full coverage */
+  position: relative; /* Keep the video behind the canvas */
+}
+
+.pose-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 90%;
+  height: 90%;
+  /* Removed border to eliminate duplicate frame */
+  /* border: 5px solid var(--primary-color, #ffd700); */
+  border-radius: 10px;
+  pointer-events: none; /* So clicks go to video if needed */
+  /* Ensure the canvas is above the video */
+  z-index: 2;
+}
+
+.hidden-canvas {
+  display: none; /* Completely hide the hidden canvas */
+}
+
+.placeholder {
+  text-align: center;
+  color: var(--text-color, #fff);
+  font-size: 1.2rem;
+}
+
+/* Right Side: Dropdown and Controls */
+.analyze-right {
+  flex: 1; /* Takes 50% of the space */
+  display: flex;
+  margin-top: 100px;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 2rem;
+  background-color: var(--background-color, #1a1a1a); /* Black theme */
+  color: var(--text-color, #fff);
+}
+
+.dropdown-title {
+  font-size: 1.8rem;
+  font-family: "Chakra Petch", sans-serif;
+  color: var(--primary-color, #ffd700); /* Yellow theme */
+  margin-bottom: 1rem;
+}
+
+.exercise-dropdown {
+  width: 80%;
+  padding: 1rem;
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.102);
+  border: 2px solid var(--primary-color, #ffd700);
+  font-size: 1rem;
+  color: var(--text-color, #fff);
+  outline: none;
+  margin-top: 1rem; /* Shift the dropdown below */
+}
+
+.exercise-dropdown:focus {
+  border-color: var(--primary-color-hover, #e5c100);
+}
+.exercise-dropdown option {
+  background-color: #00000098; /* Black background for options */
+  color: #fff; /* White text for options */
+}
+/* Hover effect for the dropdown */
+.exercise-dropdown:hover {
+  border-color: #FFA500; /* Change border to orange on hover */
+}
+
+/* Focus effect for the dropdown */
+.exercise-dropdown:focus {
+  box-shadow: 0 0 5px #FFD700; /* Yellow glow effect */
+}
+/* Dropdown for Experience Level */
+#experience {
+  background-color: rgba(255, 255, 255, 0.102); /* Black background */
+  color: #fff; /* White text */
+  border: 2px solid #FFD700; /* Yellow border */
+  border-radius: 5px; /* Rounded corners */
+  padding: 5px; /* Add some padding */
+  font-size: 16px; /* Adjust font size */
+  outline: none; /* Remove the default outline */
+}
+
+/* Dropdown options for Experience Level */
+#experience option {
+  background-color: #00000098; /* Black background for options */
+  color: #fff; /* White text for options */
+}
+
+/* Hover effect for Experience Level dropdown */
+#experience:hover {
+  border-color: #FFA500; /* Change border to orange on hover */
+}
+
+/* Focus effect for Experience Level dropdown */
+#experience:focus {
+  box-shadow: 0 0 5px #FFD700; /* Yellow glow effect */
+}
+
+/* Preferences Section */
+.exercise-config {
+  margin-top: 2rem;
+  text-align: left;
+  width: 80%;
+} 
+
+.config-row {
+  display: flex; /* Align items horizontally */
+  justify-content: space-between; /* Distribute evenly */
+  gap: 1rem; /* Add spacing between each group */
+}
+
+.config-group {
+  display: flex;
+  flex-direction: column;
+  flex: 1; /* Ensure equal width for each input group */
+}
+
+.config-group label {
+  font-size: 1rem;
+  color: var(--text-color, #fff);
+  margin-bottom: 0.5rem;
+}
+
+.config-group input,
+.config-group select {
+  padding: 0.8rem;
+  border-radius: 5px;
+  border: 2px solid var(--primary-color, #ffd700);
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-color, #fff);
+  outline: none;
+  font-size: 1rem;
+  width: 100%; /* Ensure full width within the group */
+}
+
+.start-button {
+  margin-top: 2rem;
+  padding: 1rem 2rem;
+  background-color: var(--primary-color, #ffd700);
+  color: #000;
+  font-size: 1.2rem;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.start-button:hover {
+  background-color: var(--primary-color-hover, #e5c100);
+}
+
+.rep-counter-overlay {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background-color: rgba(0, 0, 0, 0.7);
+  padding: 10px 20px;
+  border-radius: 5px;
+  color: white;
+  z-index: 3; /* Ensure it's above the canvas */
+}
+
+.rep-counter-overlay h2 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.feedback-text {
+  margin-top: 10px;
+  font-size: 18px;
+  color: #fff;
+}
+
+.good-job-message {
+  font-size: 2em;
+  color: #28a745; /* Green color for success */
+  text-align: center;
+  margin-top: 20px;
+}
+
+.calories-message {
+  font-size: 1.5em;
+  color: #ffc107; /* Amber color for attention */
+  text-align: center;
+  margin-top: 10px;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
   .analyze-scrollable {
-    display: flex;
-    flex-grow: 1;
-    overflow-y: auto; /* Enable vertical scrolling */
+    flex-direction: column;
   }
-  
-  /* Left Side: Camera Feed */
-  .analyze-left {
-    flex: 1; /* Takes 50% of the space */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background-color: #000; /* Fallback black background */
-    border-right: 2px solid rgba(255, 255, 255, 0.1); /* Subtle divider */
-  }
-  
-  .camera-feed {
-    width: 90%;
-    height: 90%;
-    border: 5px solid var(--primary-color, #ffd700); /* Yellow border */
-    border-radius: 10px;
-    object-fit: cover; /* Ensures full coverage */
-  }
-  
-  .placeholder {
-    text-align: center;
-    color: var(--text-color, #fff);
-    font-size: 1.2rem;
-  }
-  
-  /* Right Side: Dropdown and Controls */
+
+  .analyze-left,
   .analyze-right {
-    flex: 1; /* Takes 50% of the space */
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: center;
-    padding: 2rem;
-    background-color: var(--background-color, #1a1a1a); /* Black theme */
-    color: var(--text-color, #fff);
+    flex: none;
+    width: 100%;
+    height: 50%;
   }
-  
-  .dropdown-title {
-    font-size: 1.8rem;
-    font-family: "Chakra Petch", sans-serif;
-    color: var(--primary-color, #ffd700); /* Yellow theme */
-    margin-bottom: 1rem;
+
+  .pose-canvas,
+  .camera-feed {
+    width: 95%;
+    height: 90%;
   }
-  
-  .exercise-dropdown {
-    width: 80%;
-    padding: 1rem;
-    border-radius: 8px;
-    background-color: rgba(255, 255, 255, 0.1);
-    border: 2px solid var(--primary-color, #ffd700);
-    font-size: 1rem;
-    color: var(--text-color, #fff);
-    outline: none;
-    margin-top: 1rem; /* Shift the dropdown below */
-  }
-  
-  .exercise-dropdown:focus {
-    border-color: var(--primary-color-hover, #e5c100);
-  }
-  
-  /* Preferences Section */
-  .exercise-config {
-    margin-top: 2rem;
-    text-align: left;
-    width: 80%;
-  }
-  
-  .config-row {
-    display: flex; /* Align items horizontally */
-    justify-content: space-between; /* Distribute evenly */
-    gap: 1rem; /* Add spacing between each group */
-  }
-  
-  .config-group {
-    display: flex;
-    flex-direction: column;
-    flex: 1; /* Ensure equal width for each input group */
-  }
-  
-  .config-group label {
-    font-size: 1rem;
-    color: var(--text-color, #fff);
-    margin-bottom: 0.5rem;
-  }
-  
-  .config-group input {
-    padding: 0.8rem;
-    border-radius: 5px;
-    border: 2px solid var(--primary-color, #ffd700);
-    background-color: rgba(255, 255, 255, 0.1);
-    color: var(--text-color, #fff);
-    outline: none;
-    font-size: 1rem;
-    width: 100%; /* Ensure full width within the group */
-  }
-  
-  .start-button {
-    margin-top: 2rem;
-    padding: 1rem 2rem;
-    background-color: var(--primary-color, #ffd700);
-    color: #000;
-    font-size: 1.2rem;
-    font-weight: bold;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-  }
-  
-  .start-button:hover {
-    background-color: var(--primary-color-hover, #e5c100);
-  }
+
   .rep-counter-overlay {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    background-color: rgba(0, 0, 0, 0.7);
-    padding: 10px 20px;
-    border-radius: 5px;
-    color: white;
+    top: 10px;
+    left: 10px;
+    padding: 8px 16px;
+    font-size: 20px;
   }
-  
-  .rep-counter-overlay h2 {
-    margin: 0;
-    font-size: 24px;
+
+  .feedback-text {
+    font-size: 16px;
   }
-  
-  .analyze-left {
-    position: relative;
-  }
-  .good-job-message {
-    font-size: 2em;
-    color: #28a745; /* Green color for success */
-    text-align: center;
-    margin-top: 20px;
-  }
-  
-  .calories-message {
-    font-size: 1.5em;
-    color: #ffc107; /* Amber color for attention */
-    text-align: center;
-    margin-top: 10px;
-  }
-  
-  
+}

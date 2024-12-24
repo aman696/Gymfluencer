@@ -209,7 +209,7 @@ def get_shoulder_press_feedback_combined(landmarks):
             feedback = "Hold overhead, then begin lowering."
     else:  # state 2 => returning
         if (START_ANGLE_LOW <= elbow_angle <= START_ANGLE_HIGH) and not elbow_above_nose:
-            feedback = "Rep complete! Ready for next press."
+            feedback = "Rep complete! You're back at the starting position."
         else:
             feedback = "Bring elbows back to ~90° to complete the rep."
 
@@ -336,17 +336,21 @@ def process_frame():
 
         if results.pose_landmarks:
             raw_landmarks = results.pose_landmarks.landmark
+
+            # **Modified Section: Include Landmark IDs**
             landmarks = [
                 {
+                    "id": idx,  # Preserve the original landmark index
                     "x": lm.x,
                     "y": lm.y,
                     "z": lm.z,
                     "visibility": lm.visibility
                 }
-                for lm in raw_landmarks
+                for idx, lm in enumerate(raw_landmarks) if idx >= 11  # Exclude facial landmarks
             ]
+            # **End of Modified Section**
 
-            # Count Reps + Feedback
+            # Count Reps + Feedback using all landmarks (including facial landmarks)
             if exercise_type == "Lateral Raise":
                 rep_count = count_lateral_raise_chest(raw_landmarks)
                 feedback = get_lateral_raise_chest_feedback(raw_landmarks)
@@ -363,7 +367,7 @@ def process_frame():
                 feedback = "Please select a valid exercise type."
 
         return jsonify({
-            "pose_landmarks": landmarks,
+            "pose_landmarks": landmarks,  # Only body landmarks with IDs are sent
             "rep_count": rep_count,
             "feedback": feedback
         }), 200
