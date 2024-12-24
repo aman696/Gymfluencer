@@ -245,7 +245,32 @@
       width: 90%; /* Reduce popup width on smaller screens */
     }
   }
-  
+  .markdown-container h2,
+.markdown-container h3 {
+    margin-top: 1.5rem; /* Add spacing above headings */
+    margin-bottom: 1rem; /* Add spacing below headings */
+}
+
+.markdown-container p {
+    margin-top: 1rem; /* Add spacing above paragraphs */
+    margin-bottom: 1rem; /* Add spacing below paragraphs */
+}
+
+.markdown-container ul {
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+    padding-left: 1.5rem; /* Indent list items */
+}
+
+.markdown-container li {
+    margin-bottom: 0.5rem; /* Add space between list items */
+}
+
+.markdown-container table {
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+    border-spacing: 0.5rem; /* Add space between table cells */
+}
   @media (min-width: 769px) and (max-width: 1024px) {
     .workout-card {
       width: 45%; /* Two cards per row on medium screens */

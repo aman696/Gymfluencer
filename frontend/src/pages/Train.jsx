@@ -5,6 +5,8 @@ import { Header } from "../components/Header"; // Reuse the Header component
 import "./Train.css"; // Custom CSS for the Train page
 import "./Track.css"; // Reuse Track.css for consistent styling
 import axios from "axios";
+import ReactMarkdown from 'react-markdown'; // Import react-markdown
+import remarkGfm from 'remark-gfm'; // Import remark-gfm for GitHub Flavored Markdown
 
 export function Train() {
   const [selectedPlan, setSelectedPlan] = useState(null);
@@ -268,15 +270,13 @@ export function Train() {
               {loading ? "Generating..." : "Generate Plan"}
             </button>
           </form>
-
           {/* Display the Personalized Workout */}
           {personalizedWorkout && (
             <div className="generated-plan">
               <h3>Your Personalized Workout Plan:</h3>
-              <div className="plan-content">
-                {/* Render the Markdown content as HTML */}
-                <div dangerouslySetInnerHTML={{ __html: personalizedWorkout }}></div>
-              </div>
+              <div className="plan-content markdown-container">
+    <ReactMarkdown children={personalizedWorkout} remarkPlugins={[remarkGfm]} />
+</div>
             </div>
           )}
 

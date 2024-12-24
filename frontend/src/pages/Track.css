@@ -129,3 +129,79 @@
   border-radius: 5px;
   overflow-x: auto;
 }
+.generated-plan {
+  margin-top: 30px;
+  padding: 20px;
+  border: 2px solid #ffc107; /* Yellow border for distinction */
+  border-radius: 10px;
+  background-color: #111; /* Dark background for plan container */
+  color: #fff; /* White text for readability */
+  text-align: left; /* Left-align content */
+  line-height: 1.6; /* Improve line spacing for readability */
+}
+
+.generated-plan h2 {
+  font-size: 1.8rem;
+  margin-bottom: 20px;
+  color: #ffc107; /* Bright yellow for headings */
+}
+
+.generated-plan h3 {
+  font-size: 1.4rem;
+  margin-top: 20px;
+  margin-bottom: 10px;
+  color: #ddd; /* Light gray for subheadings */
+}
+
+.generated-plan p {
+  margin-bottom: 15px; /* Add spacing between paragraphs */
+  color: #ccc; /* Light gray for paragraph text */
+}
+
+.generated-plan ul {
+  margin-left: 20px; /* Indent lists */
+  margin-bottom: 15px; /* Add spacing after lists */
+}
+
+.generated-plan li {
+  margin-bottom: 10px; /* Add spacing between list items */
+}
+
+.generated-plan pre {
+  background-color: #222; /* Darker background for code blocks */
+  color: #fff; /* White text for contrast */
+  padding: 15px;
+  border-radius: 5px;
+  overflow-x: auto;
+  font-family: 'Courier New', Courier, monospace; /* Monospace font for code blocks */
+  font-size: 0.9rem;
+}
+
+.generated-plan table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 10px; /* Add spacing between table cells */
+  margin-bottom: 20px; /* Add spacing below tables */
+}
+
+.generated-plan th,
+.generated-plan td {
+  padding: 10px;
+  text-align: left;
+  background-color: #222; /* Darker cell background */
+  color: #fff; /* White text */
+  border: 1px solid #333; /* Subtle border for separation */
+}
+
+.generated-plan th {
+  font-weight: bold;
+  color: #ffc107; /* Yellow for table headers */
+}
+
+.generated-plan blockquote {
+  border-left: 5px solid #ffc107; /* Yellow border for blockquotes */
+  padding-left: 15px;
+  color: #ddd; /* Light gray for blockquote text */
+  font-style: italic;
+  margin: 15px 0;
+}
