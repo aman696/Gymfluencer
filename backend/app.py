@@ -54,7 +54,9 @@ class ExerciseState:
         self.holding_dumbbells_overall = False
         self.dumbbells_detected = False
         self.dumbbell_detection_counter = 0
-        self.squat_started = False # New flag for squat start
+        self.squat_started = False  # New flag for squat start
+        self.squat_hold_counter = 0  # New counter for squat hold
+        self.HOLD_REQUIRED_FRAMES = 30  # Assuming 30 FPS for 1 second hold
 
     def reset(self):
         self.rep_count = 0
@@ -63,7 +65,10 @@ class ExerciseState:
         self.holding_dumbbells_overall = False
         self.dumbbells_detected = False
         self.dumbbell_detection_counter = 0
-        self.squat_started = False # Reset squat start flag
+        self.squat_started = False  # Reset squat start flag
+        self.squat_hold_counter = 0  # Reset squat hold counter
+
+
 exercise_state = ExerciseState()
 
 def reset_exercise_state():
@@ -357,11 +362,11 @@ def get_bicep_curls_feedback_side_view(landmarks, side):
 
 def count_squats_pose_only(landmarks):
     """
-    3-state logic for Squats where a rep is counted when the hips are
-    approximately at the same vertical level as the knees (within a MIN_DISTANCE).
-    - State 0 => standing (hip significantly above knee)
-    - State 1 => squat position (hip near knee level)
-    - State 2 => returning to standing
+    3-state logic for Squats with a 1-second hold at the bottom:
+      - State 0 => standing (hip significantly above knee)
+      - State 1 => squat position (hip near knee level) with hold
+      - State 2 => returning to standing
+      A rep is counted after holding the squat position for 1 second and returning to standing.
     """
     MIN_DISTANCE = 0.2  # Use same distance for proximity
 
@@ -374,32 +379,43 @@ def count_squats_pose_only(landmarks):
     # Define squat state based on proximity of hips to knees
     hip_near_knee = distance <= MIN_DISTANCE  # Check if hips are close to knee
     hip_above_knee = left_hip_pt[1] < left_knee_pt[1] - MIN_DISTANCE  # Hips are significantly above knees
-    
+
     current_state = exercise_state.position_state
-    previous_state = getattr(exercise_state, 'previous_position_state', 0)  # Initialize or get previous state
+    previous_state = exercise_state.previous_position_state  # Get previous state
 
     if current_state == 0:  # Standing
         if hip_near_knee and previous_state != 1:
             exercise_state.position_state = 1
+            exercise_state.squat_hold_counter = 0  # Reset hold counter
             logging.debug("Transition to State 1: Squat Position (Hips Near Knees)")
     elif current_state == 1:  # Squat position
-         if not hip_near_knee and previous_state != 2: # Transition only if we are not in state 2
-            exercise_state.position_state = 2
-            logging.debug("Transition to State 2: Returning to Standing")
+        if hip_near_knee:
+            exercise_state.squat_hold_counter += 1
+            logging.debug(f"Squat hold counter: {exercise_state.squat_hold_counter}")
+            if exercise_state.squat_hold_counter >= exercise_state.HOLD_REQUIRED_FRAMES:
+                # Hold achieved, ready to return
+                exercise_state.position_state = 2
+                logging.debug("Hold achieved. Transition to State 2: Returning to Standing")
+        else:
+            # User did not hold the squat position long enough
+            exercise_state.position_state = 0
+            exercise_state.squat_hold_counter = 0
+            logging.debug("Hold not achieved. Reset to State 0: Standing")
     elif current_state == 2:  # Returning to standing
         if hip_above_knee:
-          exercise_state.rep_count += 1
-          exercise_state.position_state = 0
-          logging.info(f"Squat Rep Count: {exercise_state.rep_count}")
+            exercise_state.rep_count += 1
+            exercise_state.position_state = 0
+            logging.info(f"Squat Rep Count: {exercise_state.rep_count}")
 
-    exercise_state.previous_position_state = current_state # Save the current state for next loop
-    
+    exercise_state.previous_position_state = current_state  # Save the current state for next loop
+
     return exercise_state.rep_count
 
 
 def get_squats_pose_feedback(landmarks):
     """
     Provides feedback based on squat states, using the MIN_DISTANCE for the squat depth
+    and instructs the user to hold the squat position for 1 second.
     """
     MIN_DISTANCE = 0.2
     left_hip_pt = (landmarks[23].x, landmarks[23].y)
@@ -409,26 +425,32 @@ def get_squats_pose_feedback(landmarks):
 
     hip_near_knee = distance <= MIN_DISTANCE
     hip_above_knee = left_hip_pt[1] < left_knee_pt[1] - MIN_DISTANCE
-    
+
     current_state = exercise_state.position_state
+    squat_hold_counter = exercise_state.squat_hold_counter
+
+    feedback = "Squat down until your hips are close to your knees and hold for 1 second."
 
     if current_state == 0:  # Standing
         if hip_near_knee:
-           feedback = "You're near the knees, now return to standing."
+            feedback = "Great squat! Hold this position for 1 second to complete the rep."
         else:
-           feedback = "Squat down until your hips are close to your knees."
+            feedback = "Squat down until your hips are close to your knees and hold for 1 second."
     elif current_state == 1:  # Squat position
-        if not hip_near_knee:
-            feedback = "Return to standing to complete the rep."
+        if squat_hold_counter < exercise_state.HOLD_REQUIRED_FRAMES:
+            remaining_time = (exercise_state.HOLD_REQUIRED_FRAMES - squat_hold_counter) / 35  # Assuming 30 FPS
+            feedback = f"Hold the squat position for {remaining_time:.1f} more seconds."
         else:
-            feedback = "Hold briefly, then begin rising up to complete your rep."
-    else:  # Returning to standing
+            feedback = "Hold achieved! Now return to standing to complete the rep."
+    else:  # State 2 => returning
         if hip_above_knee:
-             feedback = "Rep complete! You're back at the starting position."
+            feedback = "Rep complete! You're back at the starting position."
         else:
-            feedback = "Keep rising until you are fully standing."
+            feedback = "Keep rising until you are fully standing to complete the rep."
 
     return feedback
+
+
 
 ##############################################################################
 # HAND HOLDING DETECTION
@@ -615,26 +637,24 @@ def process_frame():
         else:
             holding_dumbbell = holding_left and holding_right
 
-
         if exercise_type != "Squats":
-             if holding_dumbbell:
+            if holding_dumbbell:
                 exercise_state.dumbbell_detection_counter += 1
                 if exercise_state.dumbbell_detection_counter >= 3:
                     exercise_state.dumbbells_detected = True
                     exercise_state.holding_dumbbells_overall = True
                     logging.info("Both dumbbells consistently detected. Starting exercise tracking.")
-             else:
+            else:
                 exercise_state.dumbbell_detection_counter = 0  # Reset counter if not detected
                 exercise_state.holding_dumbbells_overall = False
         elif exercise_type == "Squats":
             # For squats, immediately enable tracking
             if not exercise_state.squat_started:
                 exercise_state.squat_started = True
-                feedback = "Stand with feet shoulder-width apart to begin squats"  # Custom initial feedback
+                feedback = "Stand with feet shoulder-width apart to begin squats. Squat down until your hips are close to your knees and hold for 1 second."
                 logging.info("Squat exercise started without dumbbells.")
             holding_dumbbell = True
             exercise_state.dumbbells_detected = True
-
 
         return jsonify({
             "pose_landmarks": landmarks,
