@@ -45,19 +45,25 @@ hands = mp_hands.Hands(
 # EXERCISE STATE (3-STATE MACHINE)
 ##############################################################################
 
+
 class ExerciseState:
     def __init__(self):
         self.rep_count = 0
         self.position_state = 0
+        self.previous_position_state = 0
         self.holding_dumbbells_overall = False
-        self.dumbbells_detected = False  # New flag to track dumbbell detection
+        self.dumbbells_detected = False
+        self.dumbbell_detection_counter = 0
+        self.squat_started = False # New flag for squat start
 
     def reset(self):
         self.rep_count = 0
         self.position_state = 0
+        self.previous_position_state = 0
         self.holding_dumbbells_overall = False
-        self.dumbbells_detected = False  # Reset the flag
-
+        self.dumbbells_detected = False
+        self.dumbbell_detection_counter = 0
+        self.squat_started = False # Reset squat start flag
 exercise_state = ExerciseState()
 
 def reset_exercise_state():
@@ -81,7 +87,7 @@ def are_landmarks_too_clustered(landmarks):
         (landmarks[26].x, landmarks[26].y)   # right knee
     ]
     
-    MIN_DISTANCE = 0.05  # Minimum allowed distance between points
+    MIN_DISTANCE = 0.1  # Minimum allowed distance between points
     
     # Check distances between all point pairs
     for i in range(len(points)):
@@ -283,79 +289,144 @@ def get_shoulder_press_feedback_combined(landmarks):
     return feedback
 
 ##############################################################################
+# BICEP CURL (One Hand at a Time, Side View)
+##############################################################################
+
+def calculate_bicep_curl_angle(landmarks, side):
+    """Calculates the angle at the elbow for bicep curls (side view)."""
+    if side == "left":
+        shoulder = (landmarks[11].x, landmarks[11].y)
+        elbow = (landmarks[13].x, landmarks[13].y)
+        wrist = (landmarks[15].x, landmarks[15].y)
+    elif side == "right":
+        shoulder = (landmarks[12].x, landmarks[12].y)
+        elbow = (landmarks[14].x, landmarks[14].y)
+        wrist = (landmarks[16].x, landmarks[16].y)
+    else:
+        return 0  # Invalid side
+
+    return calculate_angle(shoulder, elbow, wrist) # Assuming you have the calculate_angle function
+
+def count_bicep_curls_side_view(landmarks, side):
+    """Counts bicep curl reps for a single arm (side view)."""
+
+    elbow_angle = calculate_bicep_curl_angle(landmarks, side)
+
+    FLEXION_ANGLE_THRESHOLD = 45  # Angle at peak flexion
+    EXTENSION_ANGLE_THRESHOLD = 160  # Angle at full extension
+
+    current_state = exercise_state.position_state
+
+    if current_state == 0: # Start at full extension
+        if elbow_angle < FLEXION_ANGLE_THRESHOLD:
+            exercise_state.position_state = 1  # Transition to flexion
+    elif current_state == 1: # Flexed
+        if elbow_angle > EXTENSION_ANGLE_THRESHOLD:
+            exercise_state.rep_count += 1
+            exercise_state.position_state = 0 # Back to extension, rep complete
+            logging.info(f"Bicep Curl ({side}) Rep Count: {exercise_state.rep_count}")
+
+def get_bicep_curls_feedback_side_view(landmarks, side):
+    elbow_angle = calculate_bicep_curl_angle(landmarks, side)
+
+    FLEXION_ANGLE_THRESHOLD = 45
+    EXTENSION_ANGLE_THRESHOLD = 160
+
+    current_state = exercise_state.position_state
+
+    if current_state == 0:
+        if elbow_angle < FLEXION_ANGLE_THRESHOLD:
+            feedback = "Great curl! Now extend your arm fully."
+        elif elbow_angle < EXTENSION_ANGLE_THRESHOLD: # Added check for incomplete extension
+            feedback = "Extend your arm further to start the rep."            
+        else:
+             feedback = f"Curl your {side} arm towards your shoulder."
+
+    elif current_state == 1:
+        if elbow_angle > EXTENSION_ANGLE_THRESHOLD:
+            feedback = "Rep complete! Start your next curl."
+        else:
+            feedback = "Extend your arm completely to complete the rep."
+
+    return feedback
+
+##############################################################################
 # 3) SQUATS (Pose Landmarks Only, No Angles, 
 #    Rep counted once user returns fully to original standing position)
 ##############################################################################
 
 def count_squats_pose_only(landmarks):
     """
-    3-state logic for Squats with NO angles:
-      - State 0 => standing (hip definitely above knee)
-      - State 1 => bottom (hip below knee)
-      - State 2 => returning
-      A rep is counted once user returns fully to standing (hip definitely above knee).
+    3-state logic for Squats where a rep is counted when the hips are
+    approximately at the same vertical level as the knees (within a MIN_DISTANCE).
+    - State 0 => standing (hip significantly above knee)
+    - State 1 => squat position (hip near knee level)
+    - State 2 => returning to standing
     """
-    if are_landmarks_too_clustered(landmarks):
-        logging.debug("Landmarks are too clustered. Skipping rep count.")
-        return exercise_state.rep_count
+    MIN_DISTANCE = 0.2  # Use same distance for proximity
 
-    left_hip_pt   = (landmarks[23].x, landmarks[23].y)
-    left_knee_pt  = (landmarks[25].x, landmarks[25].y)
+    left_hip_pt = (landmarks[23].x, landmarks[23].y)
+    left_knee_pt = (landmarks[25].x, landmarks[25].y)
 
-    # We define 'hip below knee' => hip.y > knee.y
-    hip_below_knee = (left_hip_pt[1] > left_knee_pt[1])
-    # We define 'hip above knee' => hip.y < knee.y 
-    hip_above_knee = (left_hip_pt[1] < left_knee_pt[1])
+    # Calculate the absolute vertical distance between hip and knee
+    distance = abs(left_hip_pt[1] - left_knee_pt[1])
 
+    # Define squat state based on proximity of hips to knees
+    hip_near_knee = distance <= MIN_DISTANCE  # Check if hips are close to knee
+    hip_above_knee = left_hip_pt[1] < left_knee_pt[1] - MIN_DISTANCE  # Hips are significantly above knees
+    
     current_state = exercise_state.position_state
+    previous_state = getattr(exercise_state, 'previous_position_state', 0)  # Initialize or get previous state
 
-    if current_state == 0:
-        # We assume user is "fully standing" if hip is above knee
-        # Move to state 1 if hip goes below knee
-        if hip_below_knee:
+    if current_state == 0:  # Standing
+        if hip_near_knee and previous_state != 1:
             exercise_state.position_state = 1
-            logging.debug("Transition to State 1: Squat Bottom")
-    elif current_state == 1:
-        # bottom => if user starts raising => hip no longer below knee => state 2
-        if not hip_below_knee:
+            logging.debug("Transition to State 1: Squat Position (Hips Near Knees)")
+    elif current_state == 1:  # Squat position
+         if not hip_near_knee and previous_state != 2: # Transition only if we are not in state 2
             exercise_state.position_state = 2
             logging.debug("Transition to State 2: Returning to Standing")
-    else:  # state 2 => returning
-        # rep is counted only once user is "fully standing" => hip again above knee
+    elif current_state == 2:  # Returning to standing
         if hip_above_knee:
-            exercise_state.rep_count += 1
-            exercise_state.position_state = 0
-            logging.info(f"Squat Rep Count: {exercise_state.rep_count}")
+          exercise_state.rep_count += 1
+          exercise_state.position_state = 0
+          logging.info(f"Squat Rep Count: {exercise_state.rep_count}")
 
+    exercise_state.previous_position_state = current_state # Save the current state for next loop
+    
     return exercise_state.rep_count
 
+
 def get_squats_pose_feedback(landmarks):
-    left_hip_pt   = (landmarks[23].x, landmarks[23].y)
-    left_knee_pt  = (landmarks[25].x, landmarks[25].y)
+    """
+    Provides feedback based on squat states, using the MIN_DISTANCE for the squat depth
+    """
+    MIN_DISTANCE = 0.2
+    left_hip_pt = (landmarks[23].x, landmarks[23].y)
+    left_knee_pt = (landmarks[25].x, landmarks[25].y)
 
-    hip_below_knee = (left_hip_pt[1] > left_knee_pt[1])
-    hip_above_knee = (left_hip_pt[1] < left_knee_pt[1])
+    distance = abs(left_hip_pt[1] - left_knee_pt[1])
 
+    hip_near_knee = distance <= MIN_DISTANCE
+    hip_above_knee = left_hip_pt[1] < left_knee_pt[1] - MIN_DISTANCE
+    
     current_state = exercise_state.position_state
 
-    # Provide more verbose feedback
-    if current_state == 0:
-        # fully standing => user is above knee
-        if hip_below_knee:
-            feedback = "Good squat depth! Now drive upward through your heels."
+    if current_state == 0:  # Standing
+        if hip_near_knee:
+           feedback = "You're near the knees, now return to standing."
         else:
-            feedback = "Stand tall. Push hips down until they're below your knees."
-    elif current_state == 1:
-        # bottom => must rise
-        if not hip_below_knee:
-            feedback = "Great! Drive upward to return to standing."
+           feedback = "Squat down until your hips are close to your knees."
+    elif current_state == 1:  # Squat position
+        if not hip_near_knee:
+            feedback = "Return to standing to complete the rep."
         else:
-            feedback = "Hold the bottom briefly, then push upwards."
-    else:  # state 2 => returning
+            feedback = "Hold briefly, then begin rising up to complete your rep."
+    else:  # Returning to standing
         if hip_above_knee:
-            feedback = "Rep complete! You're back at the starting position."
+             feedback = "Rep complete! You're back at the starting position."
         else:
-            feedback = "Keep extending hips to fully stand up."
+            feedback = "Keep rising until you are fully standing."
 
     return feedback
 
@@ -366,7 +437,7 @@ def get_squats_pose_feedback(landmarks):
 def is_hand_holding_object(hand_landmarks):
     """
     Determines if a hand is holding an object based on finger landmarks.
-    Returns True if the majority of fingers are curled or if the spread of fingertips is small.
+    Returns True if the majority of fingers are curled and the spread of fingertips is small.
     """
     # Define finger tip and pip landmarks indices
     FINGER_TIPS = [4, 8, 12, 16, 20]
@@ -378,6 +449,9 @@ def is_hand_holding_object(hand_landmarks):
         # In MediaPipe, higher y-value means lower in the image (assuming origin at top-left)
         if hand_landmarks[tip].y > hand_landmarks[pip].y:
             curled_fingers += 1
+    
+    # Update: Require at least 4 curled fingers instead of 3
+    REQUIRED_CURLED_FINGERS = 4
     
     # Criterion 2: Spread of fingertips is small
     # Calculate average distance between all pairs of fingertips
@@ -395,16 +469,16 @@ def is_hand_holding_object(hand_landmarks):
     else:
         avg_distance = 0
     
-    # Threshold for considering the spread as small
-    SPREAD_THRESHOLD = 0.2  # Adjust based on testing
+    # Update: Lower the spread threshold for stricter detection
+    SPREAD_THRESHOLD = 0.15  # Previously 0.2
     
     small_spread = avg_distance < SPREAD_THRESHOLD
     
     # Logging for debugging
-    logging.debug(f"Curled fingers: {curled_fingers}, Average fingertip distance: {avg_distance}, Small spread: {small_spread}")
+    logging.debug(f"Curled fingers: {curled_fingers}, Average fingertip distance: {avg_distance:.3f}, Small spread: {small_spread}")
     
-    # Determine holding status based on criteria
-    if curled_fingers >= 3 or small_spread:
+    # Determine holding status based on updated criteria
+    if curled_fingers >= REQUIRED_CURLED_FINGERS and small_spread:
         return True
     else:
         return False
@@ -413,13 +487,19 @@ def is_hand_holding_object(hand_landmarks):
 # MAIN FEEDBACK ROUTER
 ##############################################################################
 
-def get_exercise_feedback(landmarks, exercise_type):
+def get_exercise_feedback(landmarks, exercise_type, side=None): # Add side parameter
     if exercise_type == "Lateral Raise":
         return get_lateral_raise_chest_feedback(landmarks)
     elif exercise_type == "Shoulder Press":
         return get_shoulder_press_feedback_combined(landmarks)
     elif exercise_type == "Squats":
         return get_squats_pose_feedback(landmarks)
+    elif exercise_type == "Bicep Curl":
+        if side is None:  # Default to left if no side is specified
+            side = "left"  
+        count_bicep_curls_side_view(landmarks, side) # Count for specific side
+        return get_bicep_curls_feedback_side_view(landmarks, side)
+
     else:
         return "Move to start position or select a valid exercise."
 
@@ -495,9 +575,13 @@ def process_frame():
             elif exercise_type == "Squats":
                 rep_count = count_squats_pose_only(raw_landmarks)
                 feedback = get_squats_pose_feedback(raw_landmarks)
+            elif exercise_type == "Bicep Curl":
+                side = request.form.get("side", "left")  # Get the side from the request
+                feedback = get_exercise_feedback(raw_landmarks, exercise_type, side) # Pass side
 
-        # Process Hands only if dumbbells are not already detected
-        if not exercise_state.dumbbells_detected:
+
+        # Process Hands only if dumbbells are not already detected, unless squat
+        if not exercise_state.dumbbells_detected and exercise_type != "Squats":
             hands_results = hands.process(frame_rgb)
             if hands_results.multi_hand_landmarks:
                 for hand_landmark, hand_handedness in zip(hands_results.multi_hand_landmarks, hands_results.multi_handedness):
@@ -521,23 +605,47 @@ def process_frame():
                     else:
                         holding_right = holding
 
-            holding_dumbbell = holding_left and holding_right
-            if holding_dumbbell:
-                exercise_state.dumbbells_detected = True
-                exercise_state.holding_dumbbells_overall = True
-                logging.info("Both dumbbells detected. Stopping hand tracking.")
+        # Determine holding_dumbbell based on exercise type
+        if exercise_type == "Bicep Curl":
+            side = request.form.get("side", "left")
+            if side == "left":
+                holding_dumbbell = holding_left
             else:
+                holding_dumbbell = holding_right
+        else:
+            holding_dumbbell = holding_left and holding_right
+
+
+        if exercise_type != "Squats":
+             if holding_dumbbell:
+                exercise_state.dumbbell_detection_counter += 1
+                if exercise_state.dumbbell_detection_counter >= 3:
+                    exercise_state.dumbbells_detected = True
+                    exercise_state.holding_dumbbells_overall = True
+                    logging.info("Both dumbbells consistently detected. Starting exercise tracking.")
+             else:
+                exercise_state.dumbbell_detection_counter = 0  # Reset counter if not detected
                 exercise_state.holding_dumbbells_overall = False
+        elif exercise_type == "Squats":
+            # For squats, immediately enable tracking
+            if not exercise_state.squat_started:
+                exercise_state.squat_started = True
+                feedback = "Stand with feet shoulder-width apart to begin squats"  # Custom initial feedback
+                logging.info("Squat exercise started without dumbbells.")
+            holding_dumbbell = True
+            exercise_state.dumbbells_detected = True
+
 
         return jsonify({
             "pose_landmarks": landmarks,
             "hand_landmarks": hand_landmarks if not exercise_state.dumbbells_detected else None,
             "rep_count": rep_count,
             "feedback": feedback,
-            "holding_dumbbell": holding_left and holding_right,
+            "holding_dumbbell": holding_dumbbell,
             "holding_dumbbells_overall": exercise_state.holding_dumbbells_overall,
             "dumbbells_detected": exercise_state.dumbbells_detected
         }), 200
+
 
     except Exception as e:
         logging.error(f"Error processing frame: {e}")
@@ -548,9 +656,9 @@ def process_frame():
 def reset_exercise():
     reset_exercise_state()
     exercise_state.holding_dumbbells_overall = False  # Reset holding status
+    exercise_state.dumbbell_detection_counter = 0  # Reset detection counter
     logging.info("Exercise state has been reset.")
     return jsonify({"message": "Exercise state reset"}), 200
-
 
 ##############################################################################
 # GEMINI AI DIET & WORKOUT PLAN ROUTES
