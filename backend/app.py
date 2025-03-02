@@ -1,6 +1,6 @@
-import math
 import os
 import logging
+import time  # Import time module
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import cv2
@@ -8,9 +8,8 @@ import numpy as np
 import mediapipe as mp
 import google.generativeai as genai
 from dotenv import load_dotenv
-
-# Load environment variables from .env file
-load_dotenv()
+import math
+# Removed load_dotenv since we are not using .env for configurations
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -25,18 +24,18 @@ CORS(app)
 mp_pose = mp.solutions.pose
 pose = mp_pose.Pose(
     static_image_mode=False,
-    model_complexity=1,
+    model_complexity=0,
     smooth_landmarks=True,
     enable_segmentation=False,
     min_detection_confidence=0.1,
-    min_tracking_confidence=0.1
+    min_tracking_confidence=0.1,
 )
 
 mp_hands = mp.solutions.hands
 hands = mp_hands.Hands(
     static_image_mode=False,
     max_num_hands=2,
-    model_complexity=1,
+    model_complexity=0,
     min_detection_confidence=0.5,
     min_tracking_confidence=0.5
 )
@@ -47,16 +46,16 @@ hands = mp_hands.Hands(
 
 
 class ExerciseState:
-    def __init__(self):
+    def __init__(self, hold_required_seconds=1):
         self.rep_count = 0
         self.position_state = 0
         self.previous_position_state = 0
         self.holding_dumbbells_overall = False
         self.dumbbells_detected = False
         self.dumbbell_detection_counter = 0
-        self.squat_started = False  # New flag for squat start
-        self.squat_hold_counter = 0  # New counter for squat hold
-        self.HOLD_REQUIRED_FRAMES = 30  # Assuming 30 FPS for 1 second hold
+        self.squat_started = False  # Flag for squat start
+        self.squat_hold_start_time = None  # Timestamp when squat hold starts
+        self.HOLD_REQUIRED_SECONDS = hold_required_seconds  # Manually set hold duration
 
     def reset(self):
         self.rep_count = 0
@@ -66,10 +65,12 @@ class ExerciseState:
         self.dumbbells_detected = False
         self.dumbbell_detection_counter = 0
         self.squat_started = False  # Reset squat start flag
-        self.squat_hold_counter = 0  # Reset squat hold counter
+        self.squat_hold_start_time = None  # Reset squat hold timestamp
 
 
-exercise_state = ExerciseState()
+# Initialize the ExerciseState with the configured hold duration
+HOLD_REQUIRED_SECONDS = 1  # Manually set hold duration in seconds
+exercise_state = ExerciseState(hold_required_seconds=HOLD_REQUIRED_SECONDS)
 
 def reset_exercise_state():
     exercise_state.reset()
@@ -310,7 +311,7 @@ def calculate_bicep_curl_angle(landmarks, side):
     else:
         return 0  # Invalid side
 
-    return calculate_angle(shoulder, elbow, wrist) # Assuming you have the calculate_angle function
+    return calculate_angle(shoulder, elbow, wrist)  # Assuming you have the calculate_angle function
 
 def count_bicep_curls_side_view(landmarks, side):
     """Counts bicep curl reps for a single arm (side view)."""
@@ -357,16 +358,16 @@ def get_bicep_curls_feedback_side_view(landmarks, side):
 
 ##############################################################################
 # 3) SQUATS (Pose Landmarks Only, No Angles, 
-#    Rep counted once user returns fully to original standing position)
+#    Rep counted once user returns fully to original standing position with a 1-second hold)
 ##############################################################################
 
 def count_squats_pose_only(landmarks):
     """
     3-state logic for Squats with a 1-second hold at the bottom:
-      - State 0 => standing (hip significantly above knee)
-      - State 1 => squat position (hip near knee level) with hold
-      - State 2 => returning to standing
-      A rep is counted after holding the squat position for 1 second and returning to standing.
+      - State 0 => Standing (hip significantly above knee)
+      - State 1 => Squat position (hip near knee level) with hold
+      - State 2 => Returning to standing
+      A rep is counted after holding the squat position for HOLD_REQUIRED_SECONDS and returning to standing.
     """
     MIN_DISTANCE = 0.2  # Use same distance for proximity
 
@@ -383,39 +384,44 @@ def count_squats_pose_only(landmarks):
     current_state = exercise_state.position_state
     previous_state = exercise_state.previous_position_state  # Get previous state
 
+    current_time = time.time()
+
     if current_state == 0:  # Standing
         if hip_near_knee and previous_state != 1:
             exercise_state.position_state = 1
-            exercise_state.squat_hold_counter = 0  # Reset hold counter
+            exercise_state.squat_hold_start_time = current_time  # Start hold timer
             logging.debug("Transition to State 1: Squat Position (Hips Near Knees)")
     elif current_state == 1:  # Squat position
         if hip_near_knee:
-            exercise_state.squat_hold_counter += 1
-            logging.debug(f"Squat hold counter: {exercise_state.squat_hold_counter}")
-            if exercise_state.squat_hold_counter >= exercise_state.HOLD_REQUIRED_FRAMES:
+            if exercise_state.squat_hold_start_time is None:
+                exercise_state.squat_hold_start_time = current_time  # Initialize hold start time
+                logging.debug("Squat hold timer started.")
+            hold_duration = current_time - exercise_state.squat_hold_start_time
+            logging.debug(f"Squat hold duration: {hold_duration:.2f} seconds")
+            if hold_duration >= exercise_state.HOLD_REQUIRED_SECONDS:
                 # Hold achieved, ready to return
                 exercise_state.position_state = 2
                 logging.debug("Hold achieved. Transition to State 2: Returning to Standing")
         else:
             # User did not hold the squat position long enough
             exercise_state.position_state = 0
-            exercise_state.squat_hold_counter = 0
+            exercise_state.squat_hold_start_time = None
             logging.debug("Hold not achieved. Reset to State 0: Standing")
     elif current_state == 2:  # Returning to standing
         if hip_above_knee:
             exercise_state.rep_count += 1
             exercise_state.position_state = 0
+            exercise_state.squat_hold_start_time = None
             logging.info(f"Squat Rep Count: {exercise_state.rep_count}")
 
     exercise_state.previous_position_state = current_state  # Save the current state for next loop
 
     return exercise_state.rep_count
 
-
 def get_squats_pose_feedback(landmarks):
     """
     Provides feedback based on squat states, using the MIN_DISTANCE for the squat depth
-    and instructs the user to hold the squat position for 1 second.
+    and instructs the user to hold the squat position for HOLD_REQUIRED_SECONDS.
     """
     MIN_DISTANCE = 0.2
     left_hip_pt = (landmarks[23].x, landmarks[23].y)
@@ -427,21 +433,24 @@ def get_squats_pose_feedback(landmarks):
     hip_above_knee = left_hip_pt[1] < left_knee_pt[1] - MIN_DISTANCE
 
     current_state = exercise_state.position_state
-    squat_hold_counter = exercise_state.squat_hold_counter
 
-    feedback = "Squat down until your hips are close to your knees and hold for 1 second."
+    feedback = f"Squat down until your hips are close to your knees and hold for {exercise_state.HOLD_REQUIRED_SECONDS} second(s)."
 
     if current_state == 0:  # Standing
         if hip_near_knee:
-            feedback = "Great squat! Hold this position for 1 second to complete the rep."
+            feedback = f"Great squat! Hold this position for {exercise_state.HOLD_REQUIRED_SECONDS} second(s) to complete the rep."
         else:
-            feedback = "Squat down until your hips are close to your knees and hold for 1 second."
+            feedback = f"Squat down until your hips are close to your knees and hold for {exercise_state.HOLD_REQUIRED_SECONDS} second(s)."
     elif current_state == 1:  # Squat position
-        if squat_hold_counter < exercise_state.HOLD_REQUIRED_FRAMES:
-            remaining_time = (exercise_state.HOLD_REQUIRED_FRAMES - squat_hold_counter) / 35  # Assuming 30 FPS
-            feedback = f"Hold the squat position for {remaining_time:.1f} more seconds."
+        if exercise_state.squat_hold_start_time:
+            hold_duration = time.time() - exercise_state.squat_hold_start_time
+            if hold_duration < exercise_state.HOLD_REQUIRED_SECONDS:
+                remaining_time = exercise_state.HOLD_REQUIRED_SECONDS - hold_duration
+                feedback = f"Hold the squat position for {remaining_time:.1f} more second(s)."
+            else:
+                feedback = "Hold achieved! Now return to standing to complete the rep."
         else:
-            feedback = "Hold achieved! Now return to standing to complete the rep."
+            feedback = f"Hold the squat position for {exercise_state.HOLD_REQUIRED_SECONDS} second(s)."
     else:  # State 2 => returning
         if hip_above_knee:
             feedback = "Rep complete! You're back at the starting position."
@@ -449,8 +458,6 @@ def get_squats_pose_feedback(landmarks):
             feedback = "Keep rising until you are fully standing to complete the rep."
 
     return feedback
-
-
 
 ##############################################################################
 # HAND HOLDING DETECTION
@@ -601,7 +608,6 @@ def process_frame():
                 side = request.form.get("side", "left")  # Get the side from the request
                 feedback = get_exercise_feedback(raw_landmarks, exercise_type, side) # Pass side
 
-
         # Process Hands only if dumbbells are not already detected, unless squat
         if not exercise_state.dumbbells_detected and exercise_type != "Squats":
             hands_results = hands.process(frame_rgb)
@@ -629,13 +635,31 @@ def process_frame():
 
         # Determine holding_dumbbell based on exercise type
         if exercise_type == "Bicep Curl":
-            side = request.form.get("side", "left")
+            side = request.form.get("side", "left").lower()
+            hands_results = hands.process(frame_rgb)
+            if hands_results.multi_hand_landmarks:
+                for hand_landmark, hand_handedness in zip(hands_results.multi_hand_landmarks, hands_results.multi_handedness):
+                    hand_label = hand_handedness.classification[0].label.lower()
+            
+            # Process specific hand landmarks
+                if hand_label == "left":
+                    holding_left = is_hand_holding_object(hand_landmark.landmark)
+                elif hand_label == "right":
+                    holding_right = is_hand_holding_object(hand_landmark.landmark)
             if side == "left":
                 holding_dumbbell = holding_left
             else:
                 holding_dumbbell = holding_right
         else:
-            holding_dumbbell = holding_left and holding_right
+            holding_dumbbell = False
+            if holding_dumbbell:
+                exercise_state.dumbbell_detection_counter += 1
+            if exercise_state.dumbbell_detection_counter >= 3:
+                exercise_state.dumbbells_detected = True
+                logging.info(f"Dumbbell consistently detected in {side} hand. Starting rep tracking.")
+            else:
+                exercise_state.dumbbell_detection_counter = 0  # Reset counter if not detected
+
 
         if exercise_type != "Squats":
             if holding_dumbbell:
@@ -651,7 +675,10 @@ def process_frame():
             # For squats, immediately enable tracking
             if not exercise_state.squat_started:
                 exercise_state.squat_started = True
-                feedback = "Stand with feet shoulder-width apart to begin squats. Squat down until your hips are close to your knees and hold for 1 second."
+                feedback = (
+                    f"Stand with feet shoulder-width apart to begin squats. "
+                    f"Squat down until your hips are close to your knees and hold for {exercise_state.HOLD_REQUIRED_SECONDS} second(s)."
+                )
                 logging.info("Squat exercise started without dumbbells.")
             holding_dumbbell = True
             exercise_state.dumbbells_detected = True
@@ -665,8 +692,6 @@ def process_frame():
             "holding_dumbbells_overall": exercise_state.holding_dumbbells_overall,
             "dumbbells_detected": exercise_state.dumbbells_detected
         }), 200
-
-
     except Exception as e:
         logging.error(f"Error processing frame: {e}")
         return jsonify({"error": str(e)}), 500
@@ -674,11 +699,11 @@ def process_frame():
 
 @app.route("/reset_exercise", methods=["POST"])
 def reset_exercise():
-    reset_exercise_state()
-    exercise_state.holding_dumbbells_overall = False  # Reset holding status
-    exercise_state.dumbbell_detection_counter = 0  # Reset detection counter
-    logging.info("Exercise state has been reset.")
-    return jsonify({"message": "Exercise state reset"}), 200
+        reset_exercise_state()
+        exercise_state.holding_dumbbells_overall = False  # Reset holding status
+        exercise_state.dumbbell_detection_counter = 0  # Reset detection counter
+        logging.info("Exercise state has been reset.")
+        return jsonify({"message": "Exercise state reset"}), 200
 
 ##############################################################################
 # GEMINI AI DIET & WORKOUT PLAN ROUTES

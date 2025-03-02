@@ -1,3 +1,5 @@
+// frontend/src/Analyze.js
+
 import React, { useState, useRef, useEffect } from "react";
 import "./Analyze.css"; // Ensure this path is correct
 import axios from "axios";
@@ -26,10 +28,7 @@ export function Analyze() {
     const [experienceLevel, setExperienceLevel] = useState("Beginner");
     const [bicepCurlSide, setBicepCurlSide] = useState("left");
     // Feedback States
-    const [feedback, setFeedback] = useState("Please hold dumbbells to start the exercise.");
-    const [holdingDumbbell, setHoldingDumbbell] = useState(false); // Existing State
-    const [holdingDumbbellsOverall, setHoldingDumbbellsOverall] = useState(false); // New State
-    const [dumbbellsDetected, setDumbbellsDetected] = useState(false); // New State
+    const [feedback, setFeedback] = useState("Please start the exercise.");
     
     // References for Video and Canvases
     const videoRef = useRef(null);
@@ -61,7 +60,7 @@ export function Analyze() {
             "Moderate": 6,
             "Vigorous": 7,
         },
-        "Bicep Curl": { // Added MET values for Bicep Curl
+        "Bicep Curl": {
             "Light": 3,
             "Moderate": 4,
             "Vigorous": 5,
@@ -121,9 +120,8 @@ export function Analyze() {
             setExerciseCompleted(true); // Ensure message is displayed
         }
 
-        // Reset dumbbell detection state
-        setHoldingDumbbellsOverall(false);
-        setFeedback("Please hold dumbbells to start the exercise."); // Reset feedback
+        // Reset feedback
+        setFeedback("Please start the exercise."); // Reset feedback
     };
 
     // Frame Processing Throttling
@@ -131,24 +129,22 @@ export function Analyze() {
 
     // Function to Process the Next Frame
     const processNextFrame = () => {
-        // Removed '|| dumbbellsDetected' to allow continuous frame processing
         if (!processingActive.current || isResting || currentSetCount > sets) return;
         captureFrameAndProcess();
     };
 
     const handleSideSwitch = () => {
         setBicepCurlSide(bicepCurlSide === "left" ? "right" : "left");
-        // You might want to add logic here to reset rep count for the new side
-        // if needed, e.g., setCurrentRepCount(0); 
-        // Also consider resetting the backend state for the new side using an API call
+        // Additional logic if needed
     }
 
     // Function to Capture Frame and Send to Backend
     const captureFrameAndProcess = async () => {
         setFrameCount((prev) => prev + 1);
 
+        // Keep your existing "skip" logic, but reduce the next delay:
         if (frameCount % 3 !== 0) {
-            setTimeout(() => processNextFrame(), 100);
+            setTimeout(() => processNextFrame(), 50); // Reduced from 100 to 50
             return;
         }
 
@@ -158,9 +154,10 @@ export function Analyze() {
         const hiddenCanvas = hiddenCanvasRef.current;
         const hiddenContext = hiddenCanvas.getContext("2d");
 
-        // Set hidden canvas dimensions to match backend resizing
-        hiddenCanvas.width = 640;
-        hiddenCanvas.height = 480;
+        // Set hidden canvas dimensions to smaller for faster round trip
+        // (Changed from 640x480 to 320x240)
+        hiddenCanvas.width = 320;
+        hiddenCanvas.height = 240;
 
         hiddenContext.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
 
@@ -168,11 +165,13 @@ export function Analyze() {
             const formData = new FormData();
             formData.append("frame", blob, "frame.jpg");
             formData.append("exercise_type", selectedExercise);
-            if (selectedExercise === "Bicep Curl") { // Add bicep curl side to form data if needed
+            if (selectedExercise === "Bicep Curl") {
                 formData.append("side", bicepCurlSide);
             }
 
             try {
+                console.log("Sending frame to backend"); // Debugging log
+                // Emit with additional parameters
                 const response = await axios.post(`${API_BASE_URL}process_frame`, formData, {
                     headers: { "Content-Type": "multipart/form-data" },
                 });
@@ -182,60 +181,57 @@ export function Analyze() {
 
                     if (data.pose_landmarks && data.pose_landmarks.length > 0) {
                         drawLandmarks(data.pose_landmarks, data.hand_landmarks);
+                    } else {
+                        // If no landmarks, clear canvas
+                        const ctx = canvasRef.current.getContext("2d");
+                        ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
                     }
 
-                    // Update holding states based on exercise type
-                    if (selectedExercise === "Bicep Curl") {
-                        setHoldingDumbbell(data.holding_dumbbell || false);
-                    } else {
-                        setHoldingDumbbell(data.holding_dumbbell || false);
+                    // Update states based on exercise type
+                    setCurrentRepCount(data.rep_count || 0);
+                    setFeedback(data.feedback || "Keep going!");
+
+                    // Reset inactivity timer on activity
+                    resetInactivityTimer();
+
+                    // Check if we reached the target reps
+                    if (data.rep_count >= reps && !isResting) {
+                        await axios.post(`${API_BASE_URL}reset_exercise`);
+                        setCurrentRepCount(0);
+                        startRestTimer();
+                        return;
                     }
-                    setHoldingDumbbellsOverall(data.holding_dumbbells_overall || false);
-                    setDumbbellsDetected(data.dumbbells_detected || false);
 
-                    // Only update rep count and feedback if dumbbells are detected
-                    if (data.dumbbells_detected) {
-                        setCurrentRepCount(data.rep_count || 0);
-                        setFeedback(data.feedback || "Keep going!");
-
-                        // Reset inactivity timer on activity
-                        resetInactivityTimer();
-
-                        if (data.rep_count >= reps && !isResting) {
-                            await axios.post(`${API_BASE_URL}reset_exercise`);
-                            setCurrentRepCount(0);
-                            startRestTimer();
-                        } else if (processingActive.current && !isResting && currentSetCount <= sets) {
-                            setTimeout(() => processNextFrame(), 300);
-                        }
-                    } else {
-                        // If dumbbells are not detected, provide guidance
-                        if (selectedExercise === "Squats") {
-                            setFeedback("Can start without dumbbells.");
-                        } else if (selectedExercise === "Bicep Curl") {
-                            setFeedback("Please hold a dumbbell in your " + bicepCurlSide + " hand to start the exercise.");
-                        } else {
-                            setFeedback("Please hold dumbbells in both hands to start the exercise.");
-                        }
-                        setTimeout(() => processNextFrame(), 300);
+                    // Continue processing if we haven't ended
+                    if (processingActive.current && !isResting && currentSetCount <= sets) {
+                        processNextFrame(); 
                     }
                 }
             } catch (err) {
                 console.error("Error processing frame:", err);
                 setFeedback("Error processing frame. Retrying...");
                 if (processingActive.current && !isResting && currentSetCount <= sets) {
-                    setTimeout(() => processNextFrame(), 1000);
+                    setTimeout(() => processNextFrame(), 300); // Reduced from 1000 to 300
                 }
             }
-        }, "image/jpeg", 0.7);
+        }, "image/jpeg", 0.5); // Lowered from 0.7 to 0.5
     };
 
     /**
      * Function to Draw Landmarks and Skeleton on Visible Canvas
      */
     const drawLandmarks = (poseLandmarks, handLandmarks) => {
+        console.log("Drawing landmarks:", poseLandmarks, handLandmarks); // Debugging log
+
         const canvas = canvasRef.current;
         const context = canvas.getContext("2d");
+        const video = videoRef.current;
+
+        if (!video || video.readyState !== video.HAVE_ENOUGH_DATA) return;
+
+        // Set canvas dimensions to match video
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
 
         // Clear previous drawings
         context.clearRect(0, 0, canvas.width, canvas.height);
@@ -249,10 +245,12 @@ export function Analyze() {
         // 1. Draw Pose Landmarks
         context.fillStyle = "red";
         poseLandmarks.forEach((lm) => {
-            const { x, y } = poseMap[lm.id];
-            context.beginPath();
-            context.arc(x, y, 5, 0, 2 * Math.PI);
-            context.fill();
+            if (poseMap[lm.id]) {
+                const { x, y } = poseMap[lm.id];
+                context.beginPath();
+                context.arc(x, y, 5, 0, 2 * Math.PI);
+                context.fill();
+            }
         });
 
         // 2. Define pose skeleton connections (common MediaPipe Pose pairs)
@@ -289,63 +287,6 @@ export function Analyze() {
                 context.stroke();
             }
         });
-
-        // **Removed: Drawing Hand Landmarks**
-        // Since the backend stops sending hand landmarks once dumbbells are detected,
-        // and the frontend no longer needs to display them, this section remains commented out.
-        /*
-        // 4. Draw Hand Landmarks
-        const drawHand = (handLandmarks, color = "blue") => {
-            const handMap = {};
-            handLandmarks.forEach((lm) => {
-                handMap[lm.id] = { x: lm.x * canvas.width, y: lm.y * canvas.height };
-            };
-
-            // Draw hand landmarks
-            context.fillStyle = color;
-            handLandmarks.forEach((lm) => {
-                const { x, y } = handMap[lm.id];
-                context.beginPath();
-                context.arc(x, y, 3, 0, 2 * Math.PI);
-                context.fill();
-            });
-
-            // Define hand skeleton connections (based on MediaPipe Hands)
-            const HAND_CONNECTIONS = [
-                [0, 1], [1, 2], [2, 3], [3, 4],       // Thumb
-                [0, 5], [5, 6], [6, 7], [7, 8],       // Index Finger
-                [0, 9], [9, 10], [10, 11], [11, 12],   // Middle Finger
-                [0, 13], [13, 14], [14, 15], [15, 16], // Ring Finger
-                [0, 17], [17, 18], [18, 19], [19, 20], // Pinky
-            ];
-
-            // Draw hand skeleton
-            context.strokeStyle = color;
-            context.lineWidth = 1.5;
-
-            HAND_CONNECTIONS.forEach(([startId, endId]) => {
-                const start = handMap[startId];
-                const end = handMap[endId];
-
-                if (start && end) {
-                    context.beginPath();
-                    context.moveTo(start.x, start.y);
-                    context.lineTo(end.x, end.y);
-                    context.stroke();
-                }
-            });
-        };
-
-        // Draw left hand
-        if (handLandmarks.left_hand && handLandmarks.left_hand.length > 0) {
-            drawHand(handLandmarks.left_hand, "blue");
-        }
-
-        // Draw right hand
-        if (handLandmarks.right_hand && handLandmarks.right_hand.length > 0) {
-            drawHand(handLandmarks.right_hand, "orange");
-        }
-        */
     };
 
     const WEIGHT_SUGGESTIONS = {
@@ -413,6 +354,7 @@ export function Analyze() {
                 setCaloriesBurned(totalCalories);
             } else {
                 // Next set
+                setFeedback("Get ready for the next set!");
                 processNextFrame();
             }
             return nextSet;
@@ -504,10 +446,7 @@ export function Analyze() {
             setCaloriesBurned(0);
             setFeedback(selectedExercise === "Squats" ? 
                 "Stand with feet shoulder-width apart to begin" : 
-                "Please hold dumbbells to start the exercise.");
-            setHoldingDumbbell(selectedExercise === "Squats");
-            setHoldingDumbbellsOverall(selectedExercise === "Squats");
-            setDumbbellsDetected(selectedExercise === "Squats");
+                "Please start the exercise.");
             setShowPopup(false);
             clearInactivityTimer();
             clearPopupTimer();
@@ -545,39 +484,12 @@ export function Analyze() {
                                             Set: {currentSetCount}/{sets} | Reps: {currentRepCount}/{reps}
                                         </h2>
                                         {/* Dynamic Feedback */}
-                                        <p className={`feedback-text ${holdingDumbbell ? 'holding' : 'not-holding'}`}>
+                                        <p className="feedback-text">
                                             {feedback}
                                         </p>
-                                        {/* Dumbbell Related Messages */}
-                                        {selectedExercise === "Squats" ? (
+                                        {/* Specific Exercise Feedback */}
+                                        {selectedExercise === "Squats" && (
                                             <p className="squat-status">Ready to perform squats. Stand with feet shoulder-width apart.</p>
-                                        ) : (
-                                            dumbbellsDetected ? (
-                                                <p className="dumbbells-detected-status">
-                                                    {selectedExercise === "Bicep Curl" ? 
-                                                        `Dumbbell detected in your ${bicepCurlSide} hand. You're ready to perform the exercise.` 
-                                                        : 
-                                                        "Dumbbells have been consistently detected. You're ready to perform the exercise."
-                                                    }
-                                                </p>
-                                            ) : (
-                                                <>
-                                                    <p className="holding-status">
-                                                        {selectedExercise === "Bicep Curl" ? 
-                                                            `No dumbbell detected in your ${bicepCurlSide} hand. Please hold a dumbbell to start the exercise.` 
-                                                            : 
-                                                            "No dumbbells detected. Please hold dumbbells in both hands."
-                                                        }
-                                                    </p>
-                                                    <p className="holding-overall-status">
-                                                        {selectedExercise === "Bicep Curl" ? 
-                                                            "Ensure you're holding the dumbbell firmly for accurate tracking." 
-                                                            : 
-                                                            "Ensure you're holding objects in both hands for accurate tracking."
-                                                        }
-                                                    </p>
-                                                </>
-                                            )
                                         )}
                                     </>
                                 )}
@@ -742,4 +654,4 @@ export function Analyze() {
             )}
         </div>
     );
-}
+    }
